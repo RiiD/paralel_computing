@@ -1,0 +1,49 @@
+global int count = 0;
+while(count < N){
+
+	if(id == 0){
+		if(count % 2 == 0){
+			send(num, pi + 1);
+			recv(newNum, pi + 1);
+			if(num > newNum){
+				num = newNum;
+			}
+	}f(id == N - 1){
+		if(count % 2 == id % 2){
+			send(num, pi - 1);
+			recv(newNum, pi - 1);
+			if(num <= newNum){
+				num = newNum;
+			}
+		}
+	}else if(id % 2 == 0){
+		if(count % 2 == 0){
+			send(num, pi + 1);
+			recv(newNum, pi + 1);
+			if(num > newNum){
+				num = newNum;
+			}
+		}else{
+			send(num, pi - 1);
+			recv(newNum, pi - 1);
+			if(num <= newNum){
+				num = newNum;
+			}
+		}
+	}else{
+		if(count % 2 == 0){
+			send(num, pi - 1);
+			recv(newNum, pi - 1);
+			if(num <= newNum){
+				num = newNum;
+			}
+		}else{
+			send(num, pi + 1);
+			recv(newNum, pi + 1);
+			if(num > newNum){
+				num = newNum;
+			}
+		}
+	}
+	count ++;
+}
