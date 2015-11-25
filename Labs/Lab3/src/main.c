@@ -51,7 +51,9 @@ int main(int argc,char *argv[])
 	
 	currentNumber = numbers + chunkSize * numOfProcs;
 	
-	
+	while(lastNumber - currentNumber > 0){
+		
+	}
 	
     MPI_Finalize();
  
