@@ -12,8 +12,9 @@
 #define DEFAULT_CHUNK_DELIMETER 10
 #define DEFAULT_ARRAY_SIZE 2000
 #define DEFAULT_RUN_LINEAR 0
+#define DEFAULT_PROGRESS_MODE 0
 
-int rank, commSize, master, maxChunkSize, arraySize, runLinear;
+int rank, commSize, master, maxChunkSize, arraySize, runLinear, progressMode;
 
 void sendJob(int dest, double *numbers, int count);
 void slavesJob();
@@ -37,7 +38,8 @@ int main(int argc,char *argv[])
 	arraySize = DEFAULT_ARRAY_SIZE;
 	chunkDelimeter = DEFAULT_CHUNK_DELIMETER;
 	runLinear = DEFAULT_RUN_LINEAR;
-
+	progressMode = DEFAULT_PROGRESS_MODE;
+	
 	for(i = 1; i < argc; i++)
 	{
 		if(argv[i][0] == '-')
@@ -53,6 +55,9 @@ int main(int argc,char *argv[])
 				case 'l':
 					runLinear = 1;
 					break;
+				case 'p':
+					progressMode = 1;
+					break;
 				case 'h':
 					if(rank == master)
 					{
@@ -61,6 +66,7 @@ int main(int argc,char *argv[])
 						printf("\t-c\t Set chunk delimeter.\n");
 						printf("\t-s\t Set array size.\n");
 						printf("\t-l\t Run linear test on the array. For testing purposes.\n\n\n");
+						printf("\t-p\t Show progress.\n\n\n");
 					}
 					return 0;
 					
@@ -94,8 +100,9 @@ int parallelRun(double *numbers, int size)
 	// This function become big but I don't know how to divide it to 
 	// smaller funtions in elegant way(without passing a lot of parameters).
 	double *position, *endOfNumbers;
-	int result, *results, i;
+	int result, *results, i, done, numberOfChunks;
 	unsigned char isFinished;
+	char* progressFormat = "Parallel run: %f %% done";
 	MPI_Request **requests;
 	
 	// Allocate memory
@@ -103,10 +110,23 @@ int parallelRun(double *numbers, int size)
 	results = (int*)malloc(commSize * sizeof(int));
 	
 	// Initial values
+	done = 0;
+	numberOfChunks = ceil((double)arraySize / maxChunkSize);
 	position = numbers; // Current position on numbers array
 	endOfNumbers = numbers + size; // End of numbers array
 	result = 0;
 	isFinished = 0;
+	if(progressMode)
+	{
+		printf("\n");
+	}
+	
+	// Show initial progress
+	if(progressMode)
+	{
+		printf(progressFormat, 0);
+	}
+	
 	while(!isFinished)
 	{
 		isFinished = 1;
@@ -136,6 +156,14 @@ int parallelRun(double *numbers, int size)
 				// Check if job is finished
 				if(isJobFinished)
 				{
+					// Print progress if in progress mode
+					if(progressMode)
+					{
+						done++;
+						printf("\r");
+						printf(progressFormat, (double)done * 100 / numberOfChunks);
+					}
+					
 					// If it is add the result from current job to sum of results
 					result += results[i];
 					
@@ -171,6 +199,11 @@ int parallelRun(double *numbers, int size)
 		}
 	}
 	
+	if(progressMode)
+	{
+		printf("\n");
+	}
+	
 	// Finalize
 	for(i = 0; i < commSize; i ++)
 	{
@@ -199,41 +232,44 @@ int parallelRun(double *numbers, int size)
  * Function that will be runned on master proc.
  */
 void mastersJob(){
-	double *numbers;
-	int result,
-		startTime,
-		endTime,
-		deltaTime;
+	double *numbers, deltaTime;
+	int result;
+	time_t	startTime, endTime;
 	
+	printf("Running with params: \n");
+	printf("\tNum of slaves: %d\n", commSize - 1);
+	printf("\tArray size: %d\n", arraySize);
+	printf("\tChunk size: %d\n\n", maxChunkSize);
 	
+	printf("Memory allocation...\n");
 	// Allocate space for number array
 	numbers = (double*)malloc(arraySize * sizeof(double));
 	
+	printf("Generating array...\n");
 	// Generate random array of doubles
 	generateArray(numbers, arraySize);
 	
+	printf("Proccessing...\n");
 	// Start timer
-	startTime = clock();
+	time(&startTime);
 	result = parallelRun(numbers, arraySize);
 	// Stop timer
-	endTime = clock();
-	deltaTime = endTime - startTime;
+	time(&endTime);
+	deltaTime = difftime(endTime, startTime);
+	printf("Finished!\n");
 	
 	// Print run results
-	printf("Running with params: \n");
-	printf("Num of slaves: %d\n", commSize - 1);
-	printf("Array size: %d\n", arraySize);
-	printf("Chunk size: %d\n", maxChunkSize);
-	printf("Paralel result = %d\nTook %f s\n", result, ((float)deltaTime)/CLOCKS_PER_SEC);
+	printf("Paralel result = %d\n", result);
+	printf("Took %.2f s\n", deltaTime);
 	
 	if(runLinear)
 	{
 		// Linear run over whone array to check that this program works
-		startTime = clock();
+		time(&startTime);
 		result = linearPositivesCount(numbers, arraySize);
-		endTime = clock();
-		deltaTime = endTime - startTime;
-		printf("Linear result = %d\nTook %f s\n", result, ((float)deltaTime)/CLOCKS_PER_SEC);
+		time(&endTime);
+		deltaTime = difftime(endTime, startTime);
+		printf("Linear result = %d\nTook %.2f s\n", result, deltaTime);
 	}
 	
 	// Release memory
