@@ -189,7 +189,7 @@ int parallelRun(double *numbers, int size)
 				// If no request for current slave create it and send job to slave.
 				if(chunkSize > 0)
 				{
-					requests[i] = malloc(sizeof(MPI_Request));
+					requests[i] = (MPI_Request*)malloc(sizeof(MPI_Request));
 					sendJob(i, position, chunkSize);
 					position += chunkSize;
 					MPI_Irecv(&results[i], 1, MPI_INT, i, 0, MPI_COMM_WORLD, requests[i]);
@@ -287,7 +287,7 @@ void sendJob(int dest, double *numbers, int count)
 	char *buff;
 	int position = 0, packSize;
 	packSize = sizeof(int) + sizeof(double) * maxChunkSize;
-	buff = malloc(packSize);
+	buff = (char*)malloc(packSize);
 	
 	MPI_Pack(&count, 1, MPI_INT, buff, packSize, &position, MPI_COMM_WORLD);
 	MPI_Pack(numbers, count, MPI_DOUBLE, buff, packSize, &position, MPI_COMM_WORLD);
@@ -304,12 +304,12 @@ void sendJob(int dest, double *numbers, int count)
  */
 void recvJob(int src, double *numbers, int *count)
 {
-	unsigned char* buff;
+	char* buff;
 	int packSize, position = 0;
 	MPI_Status status;
 	
 	packSize = sizeof(int) + sizeof(double) * maxChunkSize;
-	buff = malloc(packSize);
+	buff = (char*)malloc(packSize);
 	position = 0;
 	
 	MPI_Recv(buff, packSize, MPI_PACKED, src, 0, MPI_COMM_WORLD, &status);
@@ -327,7 +327,7 @@ void slavesJob(){
 	double *numbers;
 	int size, result;
 	
-	numbers = malloc(sizeof(double) * maxChunkSize);
+	numbers = (double*)malloc(sizeof(double) * maxChunkSize);
 	
 	while(1)
 	{
