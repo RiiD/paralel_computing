@@ -6,17 +6,44 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
+#define MAX_RANDOM 100
+
 void sort(MPI_Comm);
 int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir);
 void printIntMatrix(int *matrix, int cols, int rows);
-void generateRandomIntArray(int *numbers, int size);
+void generateRandomIntArray(int *numbers, int size, int max);
+void showHelp();
+
+int maxRandom = MAX_RANDOM;
 
 /**
  * App entry point
  */
 int main(int argc, char *argv[])
 {
+	int me;
 	MPI_Init(&argc, &argv);
+	
+	MPI_Comm_rank(MPI_COMM_WORLD, &me);
+	for(int i = 1; i < argc; i++)
+	{
+		if(argv[i][0] == '-')
+		{
+			switch(argv[i][1])
+			{
+				case 'r':
+					maxRandom = (int) strtol(argv[++i], (char **)NULL, 10);
+					break;
+				case 'h':
+					if(me == 0)
+					{
+						showHelp();
+					}
+					MPI_Finalize();
+					return 0;
+			}
+		}
+	}
 	
 	sort(MPI_COMM_WORLD);
 	
@@ -62,7 +89,7 @@ void sort(MPI_Comm comm)
 	if(me == master)
 	{
 		numbers = (int*)malloc(pow(size, 2) * sizeof(int));
-		generateRandomIntArray(numbers, pow(size, 2));
+		generateRandomIntArray(numbers, pow(size, 2), maxRandom);
 		printf("Initial matrix:\n");
 		printIntMatrix(numbers, size, size);
 	}
@@ -183,10 +210,19 @@ void printIntMatrix(int *matrix, int cols, int rows)
  * @param int* numbers
  * @param int size
  */
-void generateRandomIntArray(int *numbers, int size)
+void generateRandomIntArray(int *numbers, int size, int max)
 {
 	for(int i = 0; i < size; i++)
 	{
-		numbers[i] = rand() % 10;
+		numbers[i] = rand() % max;
 	}
+}
+
+void showHelp()
+{
+	printf("\nLab 4 for parallel computing course.\n");
+	printf("\n\tUsage:\n");
+	printf("\n\t\tmpirun -n [numofprocs] main [-r maxRandom].\n");
+	printf("\n\tParams:\n");
+	printf("\n\t\t-r\tSet max random for random int generator. Default 100\n\n");
 }
