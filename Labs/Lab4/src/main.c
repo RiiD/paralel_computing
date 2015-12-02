@@ -11,6 +11,9 @@ int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir);
 void printIntMatrix(int *matrix, int cols, int rows);
 void generateRandomIntArray(int *numbers, int size);
 
+/**
+ * App entry point
+ */
 int main(int argc, char *argv[])
 {
 	MPI_Init(&argc, &argv);
@@ -20,20 +23,30 @@ int main(int argc, char *argv[])
 	MPI_Finalize();
 }
 
+/**
+ * This function creates quadratic matrix which fits into given comm.
+ * It creates cartesian comm of same size as the matrix.
+ * @param MPI_Comm comm Communicator to work in.
+ */
 void sort(MPI_Comm comm)
 {
-	int me, master = 0, commSize;
-	int dims[2];
-	int coords[2];
-	int myNum;
+	int me,
+		master = 0,
+		commSize,
+		dims[2],
+		coords[2],
+		myNum,
+		periods[] = {0, 0},
+		*numbers = 0, // To avoid warnigns
+		size;
+		
 	MPI_Comm cartComm;
-	int periods[] = {0, 0};
-	int *numbers, size;
 	
+	// Create quadratic matrix comm which fits in given comm.
 	MPI_Comm_size(comm, &commSize);
 	
 	size = sqrt(commSize);
-		
+	
 	dims[0] = dims[1] = size;
 	
 	MPI_Cart_create(comm, 2, dims, periods, 0, &cartComm);
@@ -45,6 +58,7 @@ void sort(MPI_Comm comm)
 	
 	MPI_Comm_rank(cartComm, &me);
 	
+	// If master allocate space, generate array and print it
 	if(me == master)
 	{
 		numbers = (int*)malloc(pow(size, 2) * sizeof(int));
@@ -53,12 +67,15 @@ void sort(MPI_Comm comm)
 		printIntMatrix(numbers, size, size);
 	}
 	
+	// Send the numbers to everyone
 	MPI_Scatter(numbers, 1, MPI_INT, &myNum, 1, MPI_INT, master, cartComm);
 	
+	// Get my coords
 	MPI_Cart_coords(cartComm, me, 2, coords);
 	
 	for(int i = 0; i < log2(size) + 1; i++)
 	{
+		// Row sort step
 		if(coords[0] % 2 == 0)
 		{
 			myNum = oddEvenSort(cartComm, size, myNum, 1, 0);
@@ -68,11 +85,14 @@ void sort(MPI_Comm comm)
 			myNum = oddEvenSort(cartComm, size, myNum, 1, 1);
 		}
 		
+		// Column sort step
 		myNum = oddEvenSort(cartComm, size, myNum, 0, 0);
 	}
 	
+	// Get results
 	MPI_Gather(&myNum, 1, MPI_INT, numbers, 1, MPI_INT, master, cartComm);
 	
+	// If master print results and free allocated memory
 	if(me == master)
 	{
 		printf("Final matrix:\n");
@@ -81,6 +101,15 @@ void sort(MPI_Comm comm)
 	}
 }
 
+/**
+ * Does the sorting work for each proc in matrix. 
+ * Comm must be initialized as cartesian comm.
+ * @param MPI_Comm comm Communicator to wirk in
+ * @param int n Size of matrix(quadratic)
+ * @param int myNum Current number of current proc
+ * @param int dim Dimension to sort: 1 row sort, 0 col sort
+ * @param int dir Sort direction: 0 ascending, 1 descending
+ */
 int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir)
 {
 	int coords[2];
@@ -93,21 +122,21 @@ int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir)
 	
 	MPI_Cart_shift(comm, dim, 1, &prev, &next);
 	
+	// Increment i twice because we do 2 steps each iteration
 	for(int i = 0; i < n; i += 2)
 	{
 		if(coords[dim] % 2 == 0)
 		{
+			// Send to next proc in given dimension
 			if(next != -1)
 			{
-				MPI_Send(&myNum, 1, MPI_INT, next, 0, comm);
-				MPI_Recv(&buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
+				MPI_Sendrecv(&myNum, 1, MPI_INT, next, 0, &buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
 				myNum = dir ? MAX(myNum, buf) : MIN(myNum, buf);
 			}
 			
 			if(prev != -1)
 			{
-				MPI_Send(&myNum, 1, MPI_INT, prev, 0, comm);
-				MPI_Recv(&buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
+				MPI_Sendrecv(&myNum, 1, MPI_INT, prev, 0, &buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
 				myNum = dir ? MIN(myNum, buf) : MAX(myNum, buf);
 			}
 		}
@@ -115,15 +144,13 @@ int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir)
 		{
 			if(prev  != -1)
 			{
-				MPI_Recv(&buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
-				MPI_Send(&myNum, 1, MPI_INT, prev, 0, comm);
+				MPI_Sendrecv(&myNum, 1, MPI_INT, prev, 0, &buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
 				myNum = dir ? MIN(myNum, buf) : MAX(myNum, buf);
 			}
 			
 			if(next  != -1)
 			{
-				MPI_Recv(&buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
-				MPI_Send(&myNum, 1, MPI_INT, next, 0, comm);
+				MPI_Sendrecv(&myNum, 1, MPI_INT, next, 0, &buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
 				myNum = dir ? MAX(myNum, buf) : MIN(myNum, buf);
 			}
 		}
@@ -131,6 +158,13 @@ int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir)
 	return myNum;
 }
 
+
+/**
+ * Prints array as matrix.
+ * @param int* matrix Array
+ * @param int cols
+ * @param int rows
+ */
 void printIntMatrix(int *matrix, int cols, int rows)
 {
 	int i, j;
@@ -144,6 +178,11 @@ void printIntMatrix(int *matrix, int cols, int rows)
 	}
 }
 
+/**
+ * Fills array with random integers.
+ * @param int* numbers
+ * @param int size
+ */
 void generateRandomIntArray(int *numbers, int size)
 {
 	for(int i = 0; i < size; i++)
