@@ -218,6 +218,10 @@ void generateRandomIntArray(int *numbers, int size, int max)
 	}
 }
 
+/**
+ * Shows help.
+ * 
+ */
 void showHelp()
 {
 	printf("\nLab 4 for parallel computing course.\n");
