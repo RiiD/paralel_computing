@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mkdir -p ./build
+mpicc -std=c99 -Wall -W -o ./build/main ./src/main.c -lm
