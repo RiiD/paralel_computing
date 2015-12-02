@@ -5,5 +5,7 @@ Lab 4 for parallel computing course.
 
 		mpirun -n [numofprocs] main [-r maxRandom].
 
+	Params:
+
 		-r	Set max random for random int generator. Default 100
 
