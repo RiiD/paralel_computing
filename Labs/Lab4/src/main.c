@@ -6,276 +6,148 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
-
-#define N 4
-
-MPI_Comm comm;
-int num;
-
-void sort();
-void sort2(MPI_Comm comm, int size);
-void rowSort(MPI_Comm comm, int size);
-void colSort(MPI_Comm comm, int size);
+void sort(MPI_Comm);
+int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir);
+void printIntMatrix(int *matrix, int cols, int rows);
+void generateRandomIntArray(int *numbers, int size);
 
 int main(int argc, char *argv[])
 {
-	 int rank, size;
-     int dim[2], period[2], reorder;
-     int coord[2];
-	 int matrix[N * N];
-
-     MPI_Init(&argc, &argv);
-     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-     MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-     if (size != N*N) {
-         printf("Please run with %d processes and two parametrs - row and column.\n", N*N);fflush(stdout);
-         MPI_Abort(MPI_COMM_WORLD, 1);
-     }
-
-	 // A two-dimensional cylindr of 12 processes in a 4x3 grid //
-     dim[0] = N; 
-	 dim[1] = N;
-     period[0] = 1; 
-	 period[1] = 1;
-     reorder = 1;
-     MPI_Cart_create(MPI_COMM_WORLD, 2, dim, period, reorder, &comm);
-      
-	 // Each process displays its rank and cartesian coordinates
-     MPI_Cart_coords(comm, rank, 2, coord);
+	MPI_Init(&argc, &argv);
 	
-	num = rand() % 9;
-	MPI_Comm_rank(comm, &rank);
+	sort(MPI_COMM_WORLD);
 	
-	if(rank == 0){
-		int i, j;
-		for(i = 0; i < N; i++){
-			for(j = 0; j < N; j++){
-				matrix[i * N + j] = i * N + j;
-			}
-		}
-	}
-	
-	if(rank == 0){
-		printf("Not sorted:\n");
-		int i, j;
-		for(i = 0; i < N; i++){
-			for(j = 0; j < N; j++){
-				printf("%d\t", matrix[i * N + j]);
-			}
-			printf("\n");
-		}
-	}
-	
-	MPI_Scatter(matrix, 1, MPI_INT, &num, 1, MPI_INT, 0, comm);
-	
-	sort2(comm, N);
-	
-	MPI_Gather(&num, 1, MPI_INT, matrix, 1, MPI_INT, 0, comm);
-	if(rank == 0){
-		printf("Sorted:\n");
-		int i, j;
-		for(i = 0; i < N; i++){
-			for(j = 0; j < N; j++){
-				printf("%d\t", matrix[i * N + j]);
-			}
-			printf("\n");
-		}
-	}
 	MPI_Finalize();
 }
 
-void sort2(MPI_Comm comm, int size)
+void sort(MPI_Comm comm)
 {
-		for(int i = 0; i < 2 * log2(size) + 1; i++){
-			if(i % 2 == 0)
-			{
-				rowSort(comm, size);
-			}
-			else
-			{
-				printf("Col sort start\n");
-				colSort(comm, size);
-			}
-		}	
-}
-
-void rowSort(MPI_Comm comm, int size)
-{
-	int myRank, coord[2], col, row, destRank, buf;
-	MPI_Comm_rank(comm, &myRank);
-	MPI_Cart_coords(comm, myRank, 2, coord);
-	row = coord[0];
-	col = coord[1];
+	int me, master = 0, commSize;
+	int dims[2];
+	int coords[2];
+	int myNum;
+	MPI_Comm cartComm;
+	int periods[] = {0, 0};
+	int *numbers, size;
 	
-	for(int i = 0; i < size; i++)
+	MPI_Comm_size(comm, &commSize);
+	
+	size = sqrt(commSize);
+		
+	dims[0] = dims[1] = size;
+	
+	MPI_Cart_create(comm, 2, dims, periods, 0, &cartComm);
+	
+	if(cartComm == MPI_COMM_NULL)
 	{
-		if(col % 2 == 0)
+		return;
+	}
+	
+	MPI_Comm_rank(cartComm, &me);
+	
+	if(me == master)
+	{
+		numbers = (int*)malloc(pow(size, 2) * sizeof(int));
+		generateRandomIntArray(numbers, pow(size, 2));
+		printf("Initial matrix:\n");
+		printIntMatrix(numbers, size, size);
+	}
+	
+	MPI_Scatter(numbers, 1, MPI_INT, &myNum, 1, MPI_INT, master, cartComm);
+	
+	MPI_Cart_coords(cartComm, me, 2, coords);
+	
+	for(int i = 0; i < log2(size) + 1; i++)
+	{
+		if(coords[0] % 2 == 0)
 		{
-			if(row % 2 == 0 && row != size - 1)
-			{
-				int destCoord[] = {row, col + 1};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				num = MIN(num, buf);
-			}else if(row != 0){
-				int destCoord[] = {row, col - 1};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				num = MAX(num, buf);
-			}
-			
-		}else{
-			if(row % 2 == 0 && row != size - 1)
-			{
-				int destCoord[] = {row, col + 1};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				num = MAX(num, buf);
-			}else if(row != 0){
-				int destCoord[] = {row, col - 1};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				num = MIN(num, buf);
-			}
+			myNum = oddEvenSort(cartComm, size, myNum, 1, 0);
 		}
+		else
+		{
+			myNum = oddEvenSort(cartComm, size, myNum, 1, 1);
+		}
+		
+		myNum = oddEvenSort(cartComm, size, myNum, 0, 0);
+	}
+	
+	MPI_Gather(&myNum, 1, MPI_INT, numbers, 1, MPI_INT, master, cartComm);
+	
+	if(me == master)
+	{
+		printf("Final matrix:\n");
+		printIntMatrix(numbers, size, size);
+		free(numbers);
 	}
 }
 
-void colSort(MPI_Comm comm, int size)
+int oddEvenSort(MPI_Comm comm, int n,int myNum, int dim, int dir)
 {
-	int myRank, coord[2], col, row, destRank, buf;
-	MPI_Comm_rank(comm, &myRank);
-	MPI_Cart_coords(comm, myRank, 2, coord);
-	row = coord[0];
-	col = coord[1];
+	int coords[2];
+	int prev, next, me;
+	int buf;
 	
-	for(int i = 0; i < size; i++)
+	MPI_Comm_rank(comm, &me);
+	
+	MPI_Cart_coords(comm, me, 2, coords);
+	
+	MPI_Cart_shift(comm, dim, 1, &prev, &next);
+	
+	for(int i = 0; i < n; i += 2)
 	{
-		if(row % 2 == 0)
+		if(coords[dim] % 2 == 0)
+		{
+			if(next != -1)
 			{
-				int destCoord[] = {row + 1, col};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				num = MIN(num, buf);
-			}else{
-				int destCoord[] = {row - 1, col};
-				MPI_Cart_rank(comm, destCoord, &destRank);
-				MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-				MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-				num = MAX(num, buf);
+				MPI_Send(&myNum, 1, MPI_INT, next, 0, comm);
+				MPI_Recv(&buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
+				myNum = dir ? MAX(myNum, buf) : MIN(myNum, buf);
+			}
+			
+			if(prev != -1)
+			{
+				MPI_Send(&myNum, 1, MPI_INT, prev, 0, comm);
+				MPI_Recv(&buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
+				myNum = dir ? MIN(myNum, buf) : MAX(myNum, buf);
+			}
+		}
+		else
+		{
+			if(prev  != -1)
+			{
+				MPI_Recv(&buf, 1, MPI_INT, prev, 0, comm, MPI_STATUS_IGNORE);
+				MPI_Send(&myNum, 1, MPI_INT, prev, 0, comm);
+				myNum = dir ? MIN(myNum, buf) : MAX(myNum, buf);
+			}
+			
+			if(next  != -1)
+			{
+				MPI_Recv(&buf, 1, MPI_INT, next, 0, comm, MPI_STATUS_IGNORE);
+				MPI_Send(&myNum, 1, MPI_INT, next, 0, comm);
+				myNum = dir ? MAX(myNum, buf) : MIN(myNum, buf);
 			}
 		}
 	}
+	return myNum;
+}
 
-
-void sort()
+void printIntMatrix(int *matrix, int cols, int rows)
 {
-	int count = 0;
-	int myRank, destRank = 0;
-	int buf;
-	int coord[2];
-	int destCoord[2];
-	MPI_Comm_rank(comm, &myRank);
-	
-	MPI_Cart_coords(comm, myRank, 2, coord);
-	
-	for(count = 0; count < 2 * log2(N) + 1; count++){
-		int step = 0;
-		for(step = 0; step < 4; step++){
-			if(step % 4 == 0)
-			{
-				if(coord[0] % 2 == 0&& coord[0]!= N-1)
-				{
-					destCoord[0] = (N + 1 + coord[0]) % N;
-					destCoord[1] = coord[1];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					
-					//printf("%d:\tsending to:\t%d\n", myRank, destRank);
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					printf("step1");
-					//printf("got %d have %d", buf, num);
-					num = MIN(num, buf);
-					
-				}else if(coord[0]!=0)
-					{
-					destCoord[0] = (N - 1 + coord[0]) % N;
-					destCoord[1] = coord[1];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					//printf("%d:\tRecv from:\t%d\n", myRank, destRank);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					num = MAX(num, buf);
-					
-				}
-			
-			}else if(step % 4 == 1){
-				if(coord[0] % 2 == 1&&coord[0]!=N-1)
-				{
-					destCoord[0] = (N + 1 + coord[0]) % N;
-					destCoord[1] = coord[1];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					num = MIN(num, buf);
-				}else if(coord[0]!=0){
-					destCoord[0] = (N - 1 + coord[0]) % N;
-					destCoord[1] = coord[1];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					num = MAX(num, buf);
-				}
-			}else if(step % 4 == 2){
-				if(coord[1] % 2 == 0 && coord[1]!=N-1)
-				{
-					destCoord[1] = (N + 1 + coord[1]) % N;
-					destCoord[0] = coord[0];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					num = MIN(num, buf);
-				}else if(coord[1]!=0){
-					destCoord[1] = (N - 1 + coord[1]) % N;
-					destCoord[0] = coord[0];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Cart_shift(comm, 1, -1, &myRank, &destRank);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					num = MAX(num, buf);
-				}
-			}else{
-				if(coord[1] % 2 == 1 && coord[1] != N-1)
-				{
-					destCoord[1] = (N + 1 + coord[1]) % N;
-					destCoord[0] = coord[0];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					num = MIN(num, buf);
-				}else if(coord[1] != 0){
-					destCoord[1] = (N - 1 + coord[1]) % N;
-					destCoord[0] = coord[0];
-					MPI_Cart_rank(comm, destCoord, &destRank);
-					
-					MPI_Recv(&buf, 1, MPI_INT, destRank, 0, comm, MPI_STATUS_IGNORE);
-					MPI_Send(&num, 1, MPI_INT, destRank, 0, comm);
-					num = MAX(num, buf);
-				}
-			}
+	int i, j;
+	for(i = 0; i < rows; i++)
+	{
+		for(j = 0; j < cols; j++)
+		{
+			printf("%d\t", matrix[i * cols + j]);
 		}
+		printf("\n");
+	}
+}
+
+void generateRandomIntArray(int *numbers, int size)
+{
+	for(int i = 0; i < size; i++)
+	{
+		numbers[i] = rand() % 10;
 	}
 }
