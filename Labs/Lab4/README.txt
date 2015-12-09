@@ -1,3 +1,4 @@
+Array size depends on number of procs.
 
 Lab 4 for parallel computing course.
 
