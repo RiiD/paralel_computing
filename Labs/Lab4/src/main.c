@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
@@ -212,6 +213,8 @@ void printIntMatrix(int *matrix, int cols, int rows)
  */
 void generateRandomIntArray(int *numbers, int size, int max)
 {
+	
+	srand(time(NULL));
 	for(int i = 0; i < size; i++)
 	{
 		numbers[i] = rand() % max;
