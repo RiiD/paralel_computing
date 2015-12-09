@@ -72,7 +72,7 @@ void sort(MPI_Comm comm)
 	// Create quadratic matrix comm which fits in given comm.
 	MPI_Comm_size(comm, &commSize);
 	
-	size = sqrt(commSize);
+	size = (int)sqrt((float)commSize);
 	
 	dims[0] = dims[1] = size;
 	
@@ -88,8 +88,8 @@ void sort(MPI_Comm comm)
 	// If master allocate space, generate array and print it
 	if(me == master)
 	{
-		numbers = (int*)malloc( (int)pow(size, 2) * sizeof(int) );
-		generateRandomIntArray(numbers, (int)pow(size, 2), maxRandom);
+		numbers = (int*)malloc( (int)pow((float)size, 2) * sizeof(int) );
+		generateRandomIntArray(numbers, (int)pow((float)size, 2), maxRandom);
 		printf("Initial matrix:\n");
 		printIntMatrix(numbers, size, size);
 	}
@@ -100,7 +100,7 @@ void sort(MPI_Comm comm)
 	// Get my coords
 	MPI_Cart_coords(cartComm, me, 2, coords);
 	
-	for(int i = 0; i < log2(size) + 1; i++)
+	for(int i = 0; i < log((float)size) / log(2.) + 1; i++)
 	{
 		// Row sort step
 		if(coords[0] % 2 == 0)
