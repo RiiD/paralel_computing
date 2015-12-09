@@ -224,6 +224,7 @@ void generateRandomIntArray(int *numbers, int size, int max)
  */
 void showHelp()
 {
+	printf("Array size depends on number of procs.\n");
 	printf("\nLab 4 for parallel computing course.\n");
 	printf("\n\tUsage:\n");
 	printf("\n\t\tmpirun -n [numofprocs] main [-r maxRandom].\n");
