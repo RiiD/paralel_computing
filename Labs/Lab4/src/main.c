@@ -64,7 +64,7 @@ void sort(MPI_Comm comm)
 		coords[2],
 		myNum,
 		periods[] = {0, 0},
-		*numbers = 0, // To avoid warnigns
+		*numbers = 0, // Initialized to avoid warnigns
 		size;
 		
 	MPI_Comm cartComm;
@@ -88,8 +88,8 @@ void sort(MPI_Comm comm)
 	// If master allocate space, generate array and print it
 	if(me == master)
 	{
-		numbers = (int*)malloc(pow(size, 2) * sizeof(int));
-		generateRandomIntArray(numbers, pow(size, 2), maxRandom);
+		numbers = (int*)malloc( (int)pow(size, 2) * sizeof(int) );
+		generateRandomIntArray(numbers, (int)pow(size, 2), maxRandom);
 		printf("Initial matrix:\n");
 		printIntMatrix(numbers, size, size);
 	}
