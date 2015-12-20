@@ -1,4 +1,4 @@
-CC = gcc
+CC = mpicc
 CFLAGS = -std=c99 -Wall -W -fopenmp
 SRC_DIR = src
 BUILD_DIR = build

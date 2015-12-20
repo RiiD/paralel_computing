@@ -1,4 +1,5 @@
 #include <omp.h>
+#include <mpi.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 #define DEFAULT_HIST_SIZE 256
 #define DEFAULT_ARRAY_SIZE 10000
 #define DEFAULT_PARALLEL_RUN 1
+#define MASTER 0
 
 void generateRandomIntArray(int *numbers, int size, int max);
 void printIntArray(const int *array, int size);
@@ -16,16 +18,24 @@ void normalRun();
 void test1();
 void tests();
 void showHelp();
+void mpiRun();
+void createHistMpi(const int* numbers, int size, int *hist, int histSize);
 
 int gArraySize = DEFAULT_ARRAY_SIZE,
 	gHistSize = DEFAULT_HIST_SIZE,
-	gParallelRun = DEFAULT_PARALLEL_RUN;
+	gParallelRun = DEFAULT_PARALLEL_RUN,
+	rank,
+	numOfProcs;
 
 /**
  * Entry point. Configure app.
  */
 int main(int argc, char *argv[])
 {
+	MPI_Init(&argc, &argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &numOfProcs);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	
 	for(int i = 1; i < argc; i++)
 	{
 		if(argv[i][0] == '-')
@@ -51,7 +61,93 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	normalRun();
+	//normalRun();
+	
+	mpiRun();
+	
+	MPI_Finalize();
+}
+
+void mpiRun()
+{
+	int *hist = 0,
+		*numbers = 0,   // Initialized to avoid warnigns
+		startTime = 0,  // Initialized to avoid warnigns
+		endTime,
+		arraySize = gArraySize * numOfProcs;
+	
+	if(rank == MASTER)
+	{
+		printf("\n\n");
+
+		printf("Running parameters:\n");
+		printf("Array size:\t%d\n", arraySize);
+		printf("Histogram size:\t%d\n", gHistSize);
+		printf("Parallel run?\t%s\n", gParallelRun ? "Yes" : "No");
+		printf("Num of procs:\t%d\n", numOfProcs);
+
+		printf("\n\n");
+		
+		numbers = (int*) malloc( sizeof(int) * arraySize );
+		hist = (int*) malloc( sizeof(int) * gHistSize );
+		
+		printf("Generating array of numbers...\t");
+		generateRandomIntArray(numbers, arraySize, gHistSize);
+		printf("OK\n");
+
+		printf("Generating histogram...\t");
+		startTime = omp_get_wtime();
+	}
+	
+	createHistMpi(numbers, arraySize, hist, gHistSize);
+	
+	if(rank == MASTER)
+	{
+		
+		endTime = omp_get_wtime();
+		printf("OK\n");
+		
+		printf("Histogram:\n");
+		printIntArray(hist, gHistSize);
+		
+		printf("Took: %fms\n", (endTime - startTime) / 1000.0);
+		
+		free(numbers);
+		free(hist);
+	}
+}
+
+void createHistMpi(const int* numbers, int size, int *hist, int histSize)
+{
+	int *myNumbers,
+		*results,
+		chunkSize = size / numOfProcs,
+		*myHist;
+	
+	myNumbers = (int*) malloc( sizeof(int) * gArraySize );
+	results = (int*) malloc( sizeof(int) * histSize );
+	myHist = (int*) calloc(gHistSize, sizeof(int));
+	
+	MPI_Scatter(numbers, chunkSize, MPI_INT, myNumbers, chunkSize, MPI_INT, MASTER, MPI_COMM_WORLD);
+	
+	createHistParallel(myNumbers, chunkSize, myHist, histSize);
+	
+	MPI_Gather(myHist, histSize, MPI_INT, results, histSize, MPI_INT, MASTER, MPI_COMM_WORLD);
+	
+	if(rank == MASTER)
+	{
+		#pragma omp parallel for
+		for(int i = 0; i < histSize; i++)
+		{
+			hist[i] = 0;
+			for(int k = 0; k < 0; k++)
+			{
+				hist[i] += results[histSize * k + i];
+			}
+		}
+	}
+	
+	free(myNumbers);
 }
 
 /**
@@ -92,7 +188,7 @@ void normalRun()
 	
 	printf("OK\n");
 	
-	printf("Generating number of arrays...\t");
+	printf("Generating array of numbers...\t");
 	generateRandomIntArray(numbers, gArraySize, gHistSize);
 	printf("OK\n");
 
@@ -112,7 +208,7 @@ void normalRun()
 	printf("Histogram:\n");
 	printIntArray(hist, gHistSize);
 	
-	printf("Took: %fms\n", (endTime - startTime) / 1000);
+	printf("Took: %fms\n", (endTime - startTime) / 1000.0);
 	
 	printf("Releasing memmory...");
 	free(numbers);
