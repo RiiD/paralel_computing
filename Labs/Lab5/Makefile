@@ -18,4 +18,4 @@ readme: main
 
 test: main
 	@echo "Running tests..\n"
-	@$(BUILD_DIR)/main -t
+	@mpirun -n 5 $(BUILD_DIR)/main -t
