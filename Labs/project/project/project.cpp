@@ -114,7 +114,7 @@ void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY) 
  * @param char* fileName
  */
 void linearRun(char* fileName) {
-	double *distances;
+	Distance* distances;
 	int n, k;
 	Point* points;
 
@@ -135,7 +135,7 @@ void linearRun(char* fileName) {
 	printf("\tK: %d%s", k, NEWLINE);
 
 	printf("Allocating memory for distances matrix...\t");
-	distances = (double*) calloc(n * n, sizeof(double));
+	distances = (Distance*)calloc(n * n, sizeof(Distance));
 	if (distances == NULL) {
 		printf("FAILED");
 		return;
@@ -148,11 +148,16 @@ void linearRun(char* fileName) {
 	printf("OK%s", NEWLINE);
 
 	printf("Result:%s", NEWLINE);
-	printDoubleArray(distances, n * n, n);
+	printDistances(distances, n * n, n);
 	printf(NEWLINE);
+
 	for (int i = 0; i < n; i++) {
-		printf("%d\t", quick_select(distances, i * n,  i * n + n - 1, 1));
+		sortDistances(distances + i * n, n);
 	}
+
+	printf("Result:%s", NEWLINE);
+	printDistancesIndices(distances, n * n, n);
+	printf(NEWLINE);
 
 	free(points);
 	free(distances);

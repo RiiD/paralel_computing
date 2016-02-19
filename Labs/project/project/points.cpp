@@ -11,8 +11,8 @@
 #define POINT_AXIS_SEPARATOR " "
 
 void deserializePoint(char* serializedPoint, Point* dest);
-void serializePoint(Point* point, int id, char* dest);
-void generatePoint(Point* dest, double maxX, double maxY);
+void serializePoint(Point* point, char* dest);
+void generatePoint(Point* dest, int id, double maxX, double maxY);
 
 /**
 * Loads points from given file.
@@ -60,8 +60,7 @@ Point* loadPoints(char* fileName, int *n, int *k) {
 * @param Point* dest
 */
 void deserializePoint(char* serializedPoint, Point* dest) {
-	// I assume that point ID's are integers series [0, n] so ID's in file can be ignored.
-	strtok(serializedPoint, POINT_AXIS_SEPARATOR);
+	dest->id = atoi(strtok(serializedPoint, POINT_AXIS_SEPARATOR));
 
 	dest->x = atof(strtok(NULL, POINT_AXIS_SEPARATOR));
 	dest->y = atof(strtok(NULL, POINT_AXIS_SEPARATOR));
@@ -73,8 +72,8 @@ void deserializePoint(char* serializedPoint, Point* dest) {
  * @param Point* point
  * @param char* dest
  */
-void serializePoint(Point* point, int id, char* dest) {
-	sprintf(dest, "%d %f %f", id, point->x, point->y);
+void serializePoint(Point* point, char* dest) {
+	sprintf(dest, "%d %f %f", point->id, point->x, point->y);
 }
 
 /**
@@ -84,10 +83,12 @@ void serializePoint(Point* point, int id, char* dest) {
  *
  * @param Point* point1
  * @param Point* point2
- * @returns Distance - distance^2
+ * @param Distance* distance
  */
-double distance(Point* point1, Point* point2) {
-	return pow(point1->x - point2->x, 2) + pow(point1->y - point2->y, 2);
+void distance(Point* point1, Point* point2, Distance* distance) {
+	distance->distance = pow(point1->x - point2->x, 2) + pow(point1->y - point2->y, 2);
+	distance->p1 = point1;
+	distance->p2 = point2;
 }
 
 /**
@@ -103,19 +104,21 @@ void generatePoints(int n, Point dest[], double maxX, double maxY) {
 	srand(time(NULL));
 
 	for (i = 0; i < n; i++) {
-		generatePoint(&(dest[i]), maxX, maxY);
+		generatePoint(&(dest[i]), i, maxX, maxY);
 	}
 }
 
 /**
  * Generates point.
  * @param Point* dest
+ * @param int id
  * @param double maxX
  * @param double maxY
  */
-void generatePoint(Point* dest, double maxX, double maxY) {
+void generatePoint(Point* dest, int id, double maxX, double maxY) {
 	dest->x = (double)rand() / ((double)RAND_MAX / maxX);
 	dest->y = (double)rand() / ((double)RAND_MAX / maxY);
+	dest->id = id;
 }
 
 /**
@@ -136,7 +139,7 @@ void savePoints(char* fileName, Point* points, int n, int k) {
 	fprintf(fh, "%d %d%s", n, k, NEWLINE);
 
 	for (i = 0; i < n; i++) {
-		serializePoint(&points[i], i, buf);
+		serializePoint(&points[i], buf);
 		fputs(buf, fh);
 		fputs(NEWLINE, fh);
 	}
@@ -150,5 +153,34 @@ void savePoints(char* fileName, Point* points, int n, int k) {
  */
 void printPoint(void* point) {
 	Point *dPoint = (Point*)point;
-	printf("(%.2f, %.2f)", dPoint->x, dPoint->y);
+	printf("%d: (%.2f, %.2f)", dPoint->id, dPoint->x, dPoint->y);
+}
+
+void printDistance(void* distance) {
+	Distance* cDistance = (Distance*)distance;
+	printf("%.2f", cDistance->distance);
+}
+
+void printDistances(Distance distances[], int size, int colsPerRow) {
+	printArray((void**)distances, size, sizeof(Distance), colsPerRow, printDistance);
+}
+
+void printDistanceIndex(void* distance) {
+	Distance* cDistance = (Distance*)distance;
+	printf("%3d", cDistance->p2->id);
+}
+
+void printDistancesIndices(Distance distances[], int size, int colsPerRow) {
+	printArray((void**)distances, size, sizeof(Distance), colsPerRow, printDistanceIndex);
+}
+
+int distanceComparator(const void* d1, const void* d2) {
+	Distance *cd1, *cd2;
+	cd1 = (Distance*) d1;
+	cd2 = (Distance*) d2;
+	return doubleComparator((void*)(&cd1->distance), (void*)(&cd2->distance));
+}
+
+void sortDistances(Distance distances[], int size) {
+	qsort(distances, size, sizeof(Distance), distanceComparator);
 }

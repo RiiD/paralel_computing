@@ -5,6 +5,6 @@
 #define DEFAULT_K 5
 #define DEFAULT_MAX_X 10
 #define DEFAULT_MAX_Y 10
-#define DEFAULT_FILE_NAME "testPoints.txt"
+#define DEFAULT_FILE_NAME "d:/testPoints.txt"
 
 enum FUNC { LINEAR_RUN, GENERATE_POINTS_FILE };
