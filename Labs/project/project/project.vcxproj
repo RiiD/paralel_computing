@@ -152,7 +152,9 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="kernel.cu">
+      <FileType>CppCode</FileType>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="linear.cpp" />
@@ -162,6 +164,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h" />
+    <ClInclude Include="kernel.h" />
     <ClInclude Include="linear.h" />
     <ClInclude Include="points.h" />
     <ClInclude Include="utils.h" />

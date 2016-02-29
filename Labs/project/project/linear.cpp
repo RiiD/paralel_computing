@@ -11,11 +11,11 @@
  * @param int n
  * @param double[] distances
  */
-void linearDinstanceCalculate(Point points[], int n, Distance distances[]) {
+void linearDinstanceCalculate(Point points[], int n, double distances[]) {
 	int i, j;
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			distance(&(points[i]), &(points[j]), &distances[j + i * n]);
+			distances[j + i * n] = distance(&(points[i]), &(points[j]));
 		}
 	}
 }

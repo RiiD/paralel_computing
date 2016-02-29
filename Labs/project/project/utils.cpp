@@ -4,8 +4,32 @@
 
 #include "utils.h"
 
-void doublePrinter(void* num);
-int doubleComparator(const void* a, const void* b);
+struct Entry {
+	int key;
+	double value;
+};
+
+/**
+* Double comparator.
+* Retruns 1 if a > b
+*        -1 if a < b
+*         0 if a == b.
+*
+* @param const void* a
+* @param const void* b
+* @returns int
+*/
+int doubleComparator(const void* a, const void* b) {
+	double *k, *w;
+	k = (double*)a;
+	w = (double*)b;
+	if (*k < *w)
+		return -1;
+	else if (*k > *w)
+		return 1;
+	else
+		return 0;
+}
 
 /**
  * Generic array printer.
@@ -47,79 +71,47 @@ void printDoubleArray(double arr[], int size, int itemsPerLine) {
 }
 
 /**
-* Sorts each line of distances matrix using quick sort.
+* Prints array of ints.
 *
-* @params double *distances Distances matrix.
-* @params int n Size of demnsions of distances matrix.
+* @param int* arr
+* @param int size
 */
-void sortLines(double *distances, int n) {
+void printIntArray(int arr[], int size, int itemsPerLine) {
 	int i;
+	for (i = 0; i < size; i++) {
+		
+		if (i && i % itemsPerLine == 0) {
+			printf(NEWLINE);
+		}
 
-	for (i = 0; i < n; i++) {
-		qsort(distances + i * n, n, sizeof(double), doubleComparator);
+		printf("%5d", arr[i]);
 	}
 }
 
-/**
-* Double comparator.
-* Retruns 1 if a > b
-*        -1 if a < b
-*         0 if a == b.
-*
-* @param const void* a
-* @param const void* b
-* @returns int
-*/
-int doubleComparator(const void* a, const void* b) {
-	double *k, *w;
-	k = (double*)a;
-	w = (double*)b;
-	if (*k < *w)
-		return -1;
-	else if (*k > *w)
-		return 1;
-	else
-		return 0;
+int entryValueComparator(const void* e1, const void* e2) {
+	Entry *ce1, *ce2;
+	ce1 = (Entry*)e1;
+	ce2 = (Entry*)e2;
+
+	return doubleComparator((void*)&ce1->value, (void*)&ce2->value);
 }
-//
-//// Quick select code source: http://www.sourcetricks.com/2011/06/quick-select
-//
-///**
-// * 
-// */
-//int partition(void* input, int p, int r, void (*compare)(void))
-//{
-//	double pivot = input[r];
-//
-//	while (p < r)
-//	{
-//		while (input[p] < pivot)
-//			p++;
-//
-//		while (input[r] > pivot)
-//			r--;
-//
-//		if (input[p] == input[r])
-//			p++;
-//		else if (p < r) {
-//			int tmp = input[p];
-//			input[p] = input[r];
-//			input[r] = tmp;
-//		}
-//	}
-//
-//	return r;
-//}
-//
-///**
-//* Quick select algorithm.
-//*/
-//int quick_select(double* input, int p, int r, int k)
-//{
-//	if (p == r) return input[p];
-//	int j = partition(input, p, r);
-//	int length = j - p + 1;
-//	if (length == k) return input[j];
-//	else if (k < length) return quick_select(input, p, j - 1, k);
-//	else  return quick_select(input, j + 1, r, k - length);
-//}
+
+void getSortedIndexes(double arr[], int dest[], int size) {
+	Entry *entries;
+	int i;
+
+	entries = (Entry*)malloc(size * sizeof(Entry));
+
+	for (i = 0; i < size; i++) {
+		entries[i].key = i;
+		entries[i].value = arr[i];
+	}
+
+	qsort(entries, size, sizeof(Entry), entryValueComparator);
+
+	for (i = 0; i < size; i++) {
+		dest[i] = entries[i].key;
+	}
+
+	free(entries);
+}

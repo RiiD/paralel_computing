@@ -3,119 +3,113 @@
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
+#include "kernel.h"
+#include "utils.h"
 
-__global__ void addKernel(int *c, const int *a, const int *b)
-{
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+#define MAX_THREADS_DIM 32
+
+__global__ void distanceKernel(Point points[], int n, double* distances, int startX, int startY) {
+	int x = blockIdx.x * blockDim.x + threadIdx.x + startX;
+	int y = blockIdx.y * blockDim.y + threadIdx.y + startY;
+
+	if (x < n && y < n) {
+		distances[x + y * n] = distances[x * n + y] = pow(points[x].x - points[y].x, 2) + pow(points[x].y - points[y].y, 2);
+	}
 }
 
-int _main()
-{
-    const int arraySize = 5;
-    const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    int c[arraySize] = { 0 };
+int runOnCUDA(Point points[], int n, double* distances, int startX, int startY, int winSize) {
+	Point *dev_points;
+	double *dev_distances, *tmp_distances;
+	cudaError_t cudaStatus;
+	int i, blocks, threads;
 
-    // Add vectors in parallel.
-    cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addWithCuda failed!");
-        return 1;
-    }
+	cudaStatus = cudaSetDevice(0);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
+		return 1;
+	}
 
-    printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-        c[0], c[1], c[2], c[3], c[4]);
+	cudaStatus = cudaMalloc((void**)&dev_points, n * sizeof(Point));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		return 1;
+	}
 
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
-    }
+	cudaStatus = cudaMalloc((void**)&dev_distances, n * n * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		return 1;
+	}
 
-    return 0;
-}
+	// Copy input vectors from host memory to GPU buffers.
+	cudaStatus = cudaMemcpy(dev_points, points, n * sizeof(Point), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed! 1");
+		return 1;
+	}
 
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
-{
-    int *dev_a = 0;
-    int *dev_b = 0;
-    int *dev_c = 0;
-    cudaError_t cudaStatus;
+	cudaStatus = cudaMemcpy(dev_distances, distances, n * n * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed! 2");
+		return 1;
+	}
 
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-        goto Error;
-    }
+	blocks = (int)ceil((double) winSize / MAX_THREADS_DIM);
+	threads = (int)fmin((double)MAX_THREADS_DIM, (double)winSize);
 
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
+	printf("Blocks: %d, Threads: %d", blocks, threads);
 
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
+	// Launch a kernel on the GPU with one thread for each element.
+	distanceKernel << <dim3(blocks, blocks), dim3(threads, threads) >> >(dev_points, n, dev_distances, startX, startY);
 
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
+	// Check for any errors launching the kernel
+	cudaStatus = cudaGetLastError();
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "distanceKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+		return 1;
+	}
 
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+	// cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// any errors encountered during the launch.
+	cudaStatus = cudaDeviceSynchronize();
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+		return 1;
+	}
 
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+	tmp_distances = (double*) malloc(n * n * sizeof(double));
 
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
+	// Copy output vector from GPU buffer to host memory.
+	cudaStatus = cudaMemcpy(tmp_distances, dev_distances, n * n * sizeof(double), cudaMemcpyDeviceToHost);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		return 1;
+	}
 
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
-    
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-        goto Error;
-    }
+	cudaFree(dev_points);
+	cudaFree(dev_distances);
 
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
+	for (i = startY; i < startY + winSize; i++) {
+		memcpy(distances + i * n + startX, tmp_distances + i * n + startX, winSize * sizeof(double));
+	}
 
-Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
-    
-    return cudaStatus;
+	for (i = startX; i < startX + winSize; i++) {
+		memcpy(distances + i * n + startY, tmp_distances + i * n + startY, winSize * sizeof(double));
+	}
+
+	free(tmp_distances);
+
+	// cudaDeviceReset must be called before exiting in order for profiling and
+	// tracing tools such as Nsight and Visual Profiler to show complete traces.
+	cudaStatus = cudaDeviceReset();
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaDeviceReset failed!");
+		return 1;
+	}
+
+	return cudaStatus;
 }

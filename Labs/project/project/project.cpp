@@ -5,11 +5,13 @@
 #include "utils.h"
 #include "linear.h"
 #include "config.h"
+#include "kernel.h"
 
 // Declarations
 void parseArgs(int argc, char *argv[]);
 void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY);
 void linearRun(char* fileName);
+void parallelRun(char* fileName);
 
 // Global parameters
 FUNC func = DEFAULT_FUNC;		// Function to run
@@ -36,6 +38,8 @@ int main(int argc, char *argv[]) {
 		case LINEAR_RUN:
 			linearRun(filename);
 			break;
+		case PARALLEL_RUN:
+			parallelRun(filename);
 	}
 
 	return 0;
@@ -59,6 +63,14 @@ void parseArgs(int argc, char *argv[]) {
 
 			case 'f':
 				filename = argv[++i];
+				break;
+
+			case 'n':
+				n = atoi(argv[++i]);
+				break;
+
+			case 'k':
+				k = atoi(argv[++i]);
 				break;
 
 			case 'l':
@@ -110,13 +122,14 @@ void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY) 
 }
 
 /**
- * Calculates distances syncronius.
+ * Calculates distances syncronius. For testing.
  * @param char* fileName
  */
 void linearRun(char* fileName) {
-	Distance* distances;
+	double* distances;
 	int n, k;
 	Point* points;
+	int *sortedIndexes, i;
 
 	printf("Running linear algoritm.%s", NEWLINE);
 
@@ -135,7 +148,7 @@ void linearRun(char* fileName) {
 	printf("\tK: %d%s", k, NEWLINE);
 
 	printf("Allocating memory for distances matrix...\t");
-	distances = (Distance*)calloc(n * n, sizeof(Distance));
+	distances = (double*)calloc(n * n, sizeof(double));
 	if (distances == NULL) {
 		printf("FAILED");
 		return;
@@ -147,18 +160,81 @@ void linearRun(char* fileName) {
 	linearDinstanceCalculate(points, n, distances);
 	printf("OK%s", NEWLINE);
 
-	printf("Result:%s", NEWLINE);
-	printDistances(distances, n * n, n);
+	printf("Distances:%s", NEWLINE);
+	printDoubleArray(distances, n * n, n);
 	printf(NEWLINE);
 
-	for (int i = 0; i < n; i++) {
-		sortDistances(distances + i * n, n);
+	sortedIndexes = (int*)malloc(n * sizeof(n));
+
+	printf("Results:%s", NEWLINE);
+	for (i = 0; i < n; i++) {
+		printf("%3d:\t", i);
+		getSortedIndexes(distances + i * n, sortedIndexes, n);
+		printIntArray(sortedIndexes, k, k);
+		printf(NEWLINE);
+	}
+	printf(NEWLINE);
+
+	free(sortedIndexes);
+	free(points);
+	free(distances);
+}
+
+/**
+* Calculates distances asyncronius.
+* @param char* fileName
+*/
+void parallelRun(char* fileName) {
+	double* distances;
+	int n, k;
+	Point* points;
+	int *sortedIndexes, i;
+
+	printf("Running linear algoritm.%s", NEWLINE);
+
+	printf("Loading points...\t");
+	points = loadPoints(fileName, &n, &k);
+
+	if (points == NULL) {
+		printf("Failed to load points!%s", NEWLINE);
+		return;
 	}
 
-	printf("Result:%s", NEWLINE);
-	printDistancesIndices(distances, n * n, n);
+	printf("OK%s", NEWLINE);
+
+	printf("Running params:%s", NEWLINE);
+	printf("\tN: %d%s", n, NEWLINE);
+	printf("\tK: %d%s", k, NEWLINE);
+
+	printf("Allocating memory for distances matrix...\t");
+	distances = (double*)calloc(n * n, sizeof(double));
+	if (distances == NULL) {
+		printf("FAILED");
+		return;
+	}
+
+	printf("OK%s", NEWLINE);
+
+	printf("Calculating distances...\t");
+	runOnCUDA(points, n, distances, 0, 0, n);
+	printf("OK%s", NEWLINE);
+
+	printf("Distances:%s", NEWLINE);
+	printDoubleArray(distances, n * n, n);
 	printf(NEWLINE);
 
+	/*sortedIndexes = (int*)malloc(n * sizeof(n));
+
+	printf("Results:%s", NEWLINE);
+	for (i = 0; i < n; i++) {
+		printf("%3d:\t", i);
+		getSortedIndexes(distances + i * n, sortedIndexes, n);
+		printIntArray(sortedIndexes, k, k);
+		printf(NEWLINE);
+	}
+	printf(NEWLINE);
+
+	free(sortedIndexes);*/
 	free(points);
 	free(distances);
 }
