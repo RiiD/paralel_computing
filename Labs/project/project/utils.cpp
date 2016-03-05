@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <float.h>
 
 #include "utils.h"
 
@@ -8,28 +9,6 @@ struct Entry {
 	int key;
 	double value;
 };
-
-/**
-* Double comparator.
-* Retruns 1 if a > b
-*        -1 if a < b
-*         0 if a == b.
-*
-* @param const void* a
-* @param const void* b
-* @returns int
-*/
-int doubleComparator(const void* a, const void* b) {
-	double *k, *w;
-	k = (double*)a;
-	w = (double*)b;
-	if (*k < *w)
-		return -1;
-	else if (*k > *w)
-		return 1;
-	else
-		return 0;
-}
 
 /**
  * Generic array printer.
@@ -84,34 +63,25 @@ void printIntArray(int arr[], int size, int itemsPerLine) {
 			printf(NEWLINE);
 		}
 
-		printf("%5d", arr[i]);
+		printf("%10d", arr[i]);
 	}
 }
 
-int entryValueComparator(const void* e1, const void* e2) {
-	Entry *ce1, *ce2;
-	ce1 = (Entry*)e1;
-	ce2 = (Entry*)e2;
+void sortKElements(double arr[], int dest[], int n, int k)
+{
+	int i, j, min_idx;
 
-	return doubleComparator((void*)&ce1->value, (void*)&ce2->value);
-}
+	// One by one move boundary of unsorted subarray
+	for (i = 0; i < k; i++)
+	{
+		// Find the minimum element in unsorted array
+		min_idx = i;
+		for (j = i + 1; j < n; j++)
+			if (arr[j] < arr[min_idx])
+				min_idx = j;
 
-void getSortedIndexes(double arr[], int dest[], int size) {
-	Entry *entries;
-	int i;
-
-	entries = (Entry*)malloc(size * sizeof(Entry));
-
-	for (i = 0; i < size; i++) {
-		entries[i].key = i;
-		entries[i].value = arr[i];
+		// Swap the found minimum element with the first element
+		arr[min_idx] = DBL_MAX;
+		dest[i] = min_idx;
 	}
-
-	qsort(entries, size, sizeof(Entry), entryValueComparator);
-
-	for (i = 0; i < size; i++) {
-		dest[i] = entries[i].key;
-	}
-
-	free(entries);
 }

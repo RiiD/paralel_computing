@@ -17,9 +17,8 @@
 * @param Point* dest
 */
 void deserializePoint(char* serializedPoint, Point* dest) {
-	// I assume that ID's of points are series of natural numbers [0-n]
+	// I assume that ID's of points are series of natural numbers [0-n)
 	strtok(serializedPoint, POINT_AXIS_SEPARATOR);
-
 	dest->x = atof(strtok(NULL, POINT_AXIS_SEPARATOR));
 	dest->y = atof(strtok(NULL, POINT_AXIS_SEPARATOR));
 }
@@ -52,6 +51,11 @@ Point* loadPoints(char* fileName, int *n, int *k) {
 	*k = atoi(strtok(NULL, POINT_AXIS_SEPARATOR));
 
 	points = (Point*) malloc(*n * sizeof(Point));
+
+	if (points == NULL) {
+		printf("Failed to allocate memory for points!%s", NEWLINE);
+		return NULL;
+	}
 
 	for (i = 0; i < (*n); i++) {
 		str = fgets(buf, ROW_BUF_SIZE, fh);
@@ -108,7 +112,7 @@ void generatePoint(Point* dest, double maxX, double maxY) {
  */
 void generatePoints(int n, Point dest[], double maxX, double maxY) {
 	int i;
-	srand(time(NULL));
+	srand((int)time(NULL));
 
 	for (i = 0; i < n; i++) {
 		generatePoint(&(dest[i]), maxX, maxY);

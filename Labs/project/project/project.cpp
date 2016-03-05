@@ -1,5 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
+#include <time.h>
+#include <float.h>
 
 #include "points.h"
 #include "utils.h"
@@ -9,9 +11,11 @@
 
 // Declarations
 void parseArgs(int argc, char *argv[]);
-void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY);
-void linearRun(char* fileName);
-void parallelRun(char* fileName);
+void generatePointsFile();
+void findKNearest(void(*strategy)(Point *points, int *kNearest, void(*statusCallback)(const double percent)));
+void linearStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent));
+void cudaOmpStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent));
+void saveResults(int *kNearest);
 
 // Global parameters
 FUNC func = DEFAULT_FUNC;		// Function to run
@@ -19,7 +23,8 @@ int n = DEFAULT_N;				// Number of points
 int k = DEFAULT_K;				// Number of nearest points
 double maxX = DEFAULT_MAX_X;	// Maximum x axis value
 double maxY = DEFAULT_MAX_Y;	// Maximum y axis value
-char* filename = DEFAULT_FILE_NAME; // File to be readed
+char* pointsFileName = DEFAULT_POINTS_FILE_NAME; // File to be readed
+char* resultFileName = DEFAULT_RESULTS_FILE_NAME;
 
 /**
  * Bootstraps the application.
@@ -33,13 +38,14 @@ int main(int argc, char *argv[]) {
 
 	switch (func) {
 		case GENERATE_POINTS_FILE:
-			generatePointsFile(filename, n, k, maxX, maxY);
+			generatePointsFile();
 			break;
 		case LINEAR_RUN:
-			linearRun(filename);
+			findKNearest(linearStrategy);
 			break;
-		case PARALLEL_RUN:
-			parallelRun(filename);
+		case CUDA_OMP_RUN:
+			findKNearest(cudaOmpStrategy);
+			break;
 	}
 
 	return 0;
@@ -62,7 +68,14 @@ void parseArgs(int argc, char *argv[]) {
 				break;
 
 			case 'f':
-				filename = argv[++i];
+				switch (argv[i][2])
+				{
+					case 'p':
+						pointsFileName = argv[++i];
+						break;
+					case 'r':
+						resultFileName = argv[++i];
+				}
 				break;
 
 			case 'n':
@@ -83,17 +96,12 @@ void parseArgs(int argc, char *argv[]) {
 
 /**
  * Generates n points and saves them to file.
- * @param char* fileName
- * @param int n
- * @param int k
- * @param double maxX
- * @param double maxY
  */
-void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY) {
+void generatePointsFile() {
 	Point* points;
 
 	printf("Creating points file:%s", NEWLINE);
-	printf("\tFile name:\t%s%s", fileName, NEWLINE);
+	printf("\tFile name:\t%s%s", pointsFileName, NEWLINE);
 	printf("\tPoints number:\t%d%s", n, NEWLINE);
 	printf("\tNeares numbers count:\t%d%s%s", k, NEWLINE, NEWLINE);
 
@@ -111,7 +119,7 @@ void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY) 
 	printf("OK%s", NEWLINE);
 
 	printf("Saving points...\t");
-	savePoints(fileName, points, n, k);
+	savePoints(pointsFileName, points, n, k);
 	printf("OK%s", NEWLINE);
 
 	printf("Freeing memory...\t");
@@ -122,119 +130,163 @@ void generatePointsFile(char* fileName, int n, int k, double maxX, double maxY) 
 }
 
 /**
- * Calculates distances syncronius. For testing.
- * @param char* fileName
+ * Prints current run configuration.
  */
-void linearRun(char* fileName) {
-	double* distances;
-	int n, k;
-	Point* points;
-	int *sortedIndexes, i;
+void printRunConfiguration() {
+	printf("Run configuration:%s", NEWLINE);
+	printf("\tType:\t");
+	switch (func) {
+		case LINEAR_RUN:
+			printf("Linear");
+			break;
+		case CUDA_OMP_RUN:
+			printf("Parallel");
+			break;
+	}
+	printf(NEWLINE);
+	printf("\tN: %d%s", n, NEWLINE);
+	printf("\tK: %d%s", k, NEWLINE);
+}
 
-	printf("Running linear algoritm.%s", NEWLINE);
+/**
+* Prints given number as percent.
+* @param const double percent
+*/
+void printStatus(const double percent) {
+	printf("\r%5.2f%% completed", percent);
+	fflush(stdout);
+}
+
+/**
+ * finds k nearest elemrnts.
+ * @param char* fileName
+ * @param void* strategy callback strategy to run.
+ */
+void findKNearest(void(*strategy)(Point *points, int *kNearest, void(*statusCallback)(const double percent))) {
+	
+	int *kNearest, startTime, endTime;
+	Point* points;
 
 	printf("Loading points...\t");
-	points = loadPoints(fileName, &n, &k);
+	points = loadPoints(pointsFileName, &n, &k);
 
 	if (points == NULL) {
 		printf("Failed to load points!%s", NEWLINE);
 		return;
 	}
-
 	printf("OK%s", NEWLINE);
 
-	printf("Running params:%s", NEWLINE);
-	printf("\tN: %d%s", n, NEWLINE);
-	printf("\tK: %d%s", k, NEWLINE);
+	printRunConfiguration();
 
-	printf("Allocating memory for distances matrix...\t");
-	distances = (double*)calloc(n * n, sizeof(double));
-	if (distances == NULL) {
+	printf("Allocating memory...\t");
+	kNearest = (int*)malloc(k * sizeof(int) * n);
+
+	if (kNearest == NULL) {
 		printf("FAILED");
 		return;
 	}
-
 	printf("OK%s", NEWLINE);
-
-	printf("Calculating distances...\t");
-	linearDinstanceCalculate(points, n, distances);
-	printf("OK%s", NEWLINE);
-
-	printf("Distances:%s", NEWLINE);
-	printDoubleArray(distances, n * n, n);
+	printf("Calculating...%s", NEWLINE);
+	startTime = (int)time(NULL);
+	strategy(points, kNearest, printStatus);
+	endTime = (int)time(NULL);
 	printf(NEWLINE);
 
-	sortedIndexes = (int*)malloc(n * sizeof(n));
+	printf("Saving results...");
+	saveResults(kNearest);
+	printf("OK%s", NEWLINE);
 
-	printf("Results:%s", NEWLINE);
-	for (i = 0; i < n; i++) {
-		printf("%3d:\t", i);
-		getSortedIndexes(distances + i * n, sortedIndexes, n);
-		printIntArray(sortedIndexes, k, k);
-		printf(NEWLINE);
-	}
-	printf(NEWLINE);
+	printf("Took: %d s", endTime - startTime);
 
-	free(sortedIndexes);
+	free(kNearest);
 	free(points);
+}
+
+/**
+ * Calculates indexes of k nearest points for each point in points array in linear way.
+ * @param Point* points
+ * @param int* kNearest points array. Must be initialized
+ * @param void* statusCallback callable will be called when need to update status.
+ */
+void linearStrategy(Point *points, int *kNearest, void (*statusCallback)(const double percent)) {
+	double *distances;
+
+	distances = (double*)calloc(n * n, sizeof(double));
+	
+	if (distances == NULL) {
+		printf("Failed to allocate memory for temporary distances matrix!%s", NEWLINE);
+		return;
+	}
+
+	statusCallback(0);
+	linearDinstanceCalculate(points, n, distances);
+	statusCallback(50);
+	for (int i = 0; i < n; i++) {
+		distances[i * n + i] = DBL_MAX; // Set (x, x) elemnt to max double so it will not be considered as nearest point to itself.
+		sortKElements(distances + i * n, kNearest + i * k, n, k);
+		statusCallback( 50 + 50.0 * (i + 1) / n);
+	}
+
 	free(distances);
 }
 
 /**
-* Calculates distances asyncronius.
-* @param char* fileName
+* Calculates indexes of k nearest points for each point in points array using CUDA and omp.
+* @param Point* points
+* @param int* kNearest points array. Must be initialized
+* @param void* statusCallback callable will be called when need to update status.
 */
-void parallelRun(char* fileName) {
-	double* distances;
-	int n, k;
-	Point* points;
-	int *sortedIndexes, i;
+void cudaOmpStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent)) {
+	double *distances;
+	distances = (double*)malloc(n * POINTS_PER_ITERATION * sizeof(double));
 
-	printf("Running linear algoritm.%s", NEWLINE);
-
-	printf("Loading points...\t");
-	points = loadPoints(fileName, &n, &k);
-
-	if (points == NULL) {
-		printf("Failed to load points!%s", NEWLINE);
-		return;
-	}
-
-	printf("OK%s", NEWLINE);
-
-	printf("Running params:%s", NEWLINE);
-	printf("\tN: %d%s", n, NEWLINE);
-	printf("\tK: %d%s", k, NEWLINE);
-
-	printf("Allocating memory for distances matrix...\t");
-	distances = (double*)calloc(n * n, sizeof(double));
 	if (distances == NULL) {
-		printf("FAILED");
+		printf("Failed to allocate memory for temporary distances matrix!%s", NEWLINE);
 		return;
 	}
 
-	printf("OK%s", NEWLINE);
+	cudaInit(points, n, POINTS_PER_ITERATION);
 
-	printf("Calculating distances...\t");
-	runOnCUDA(points, n, distances, 0, 0, n);
-	printf("OK%s", NEWLINE);
+	for (int i = 0; i <= n; i = i + POINTS_PER_ITERATION) {
 
-	printf("Distances:%s", NEWLINE);
-	printDoubleArray(distances, n * n, n);
-	printf(NEWLINE);
+		if (i < n)
+			runOnCUDA(distances, n, k, i, POINTS_PER_ITERATION);
 
-	/*sortedIndexes = (int*)malloc(n * sizeof(n));
-
-	printf("Results:%s", NEWLINE);
-	for (i = 0; i < n; i++) {
-		printf("%3d:\t", i);
-		getSortedIndexes(distances + i * n, sortedIndexes, n);
-		printIntArray(sortedIndexes, k, k);
-		printf(NEWLINE);
+		if (i > 0) {
+		#pragma omp parallel for
+			for (int j = 0; j < POINTS_PER_ITERATION; j++) {
+				distances[n * j + (i - POINTS_PER_ITERATION) + j] = DBL_MAX; // Max out distance from point itself so sort algorithm will ignore it
+				sortKElements(distances + j * n, kNearest + k * (i - POINTS_PER_ITERATION + j), n, k);
+			}
+		}
+		if (i < n)
+			cudaResult(distances, n, POINTS_PER_ITERATION);
+		statusCallback(100.0 * i / n);
 	}
-	printf(NEWLINE);
-
-	free(sortedIndexes);*/
-	free(points);
+	cudaFinalize();
 	free(distances);
+}
+
+/**
+ * Save results to results file.
+ * @param int* kNearest
+ */
+void saveResults(int *kNearest) {
+	FILE *fh;
+	fopen_s(&fh, resultFileName, "w");
+
+	if (fh == NULL) {
+		printf("Failed to open file %s for writing!%s", resultFileName, NEWLINE);
+		return;
+	}
+
+	for (int i = 0; i < n; i++) {
+		fprintf(fh, "%d ", i);
+		for (int j = 0; j < k; j++) {
+			fprintf(fh, "%d ", kNearest[k * i + j]);
+		}
+		fprintf(fh, NEWLINE);
+	}
+
+	fclose(fh);
 }
