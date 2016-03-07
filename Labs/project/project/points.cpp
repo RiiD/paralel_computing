@@ -71,10 +71,10 @@ Point* loadPoints(const char* fileName, int *n, int *k) {
  * Serializes point.
  *
  * @param const Point* point
- * @param const int id
+ * @param int id
  * @param char* dest
  */
-void serializePoint(const Point* point, const int id, char* dest) {
+void serializePoint(const Point* point, int id, char* dest) {
 	sprintf(dest, "%d %f %f", id, point->x, point->y);
 }
 
@@ -94,10 +94,10 @@ double distance(const Point* point1, const Point* point2) {
 /**
 * Generates point.
 * @param Point* dest
-* @param const double maxX
-* @param const double maxY
+* @param double maxX
+* @param double maxY
 */
-void generatePoint(Point* dest, const double maxX, const double maxY) {
+void generatePoint(Point* dest, double maxX, double maxY) {
 	dest->x = (double)rand() / ((double)RAND_MAX / maxX);
 	dest->y = (double)rand() / ((double)RAND_MAX / maxY);
 }
@@ -105,12 +105,12 @@ void generatePoint(Point* dest, const double maxX, const double maxY) {
 /**
  * Generates points. Dest should be n * sizeof(Point) bytes.
  *
- * @param const int n - number of points to generate
+ * @param int n - number of points to generate
  * @param Point[] dest
- * @param const double maxX
- * @param const double maxY
+ * @param double maxX
+ * @param double maxY
  */
-void generatePoints(const int n, Point dest[], const double maxX, const double maxY) {
+void generatePoints(int n, Point dest[], double maxX, double maxY) {
 	int i;
 	srand((int)time(NULL));
 
@@ -124,10 +124,10 @@ void generatePoints(const int n, Point dest[], const double maxX, const double m
  *
  * @param const char* fileName
  * @param const Point* points
- * @param const int n - Number of points
- * @param const int k - Number of nearest points.
+ * @param int n - Number of points
+ * @param int k - Number of nearest points.
  */
-void savePoints(const char* fileName, const Point* points, const int n, const int k) {
+void savePoints(const char* fileName, const Point* points, int n, int k) {
 	FILE *fh;
 	char buf[ROW_BUF_SIZE];
 	int i;

@@ -15,10 +15,10 @@ static cudaError_t cudaStatus;
  * Calculates distances from one point to another. Runs on CUDA device.
  * @param const Point* points
  * @param double* distances
- * @param const int n
- * @param const int startPoint
+ * @param int n
+ * @param int startPoint
  */
-__global__ void distanceKernel(const Point points[], double distances[], const int n, const int startPoint) {
+__global__ void distanceKernel(const Point points[], double distances[], int n, int startPoint) {
 	int y = blockIdx.y;
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -34,11 +34,11 @@ __global__ void distanceKernel(const Point points[], double distances[], const i
 /**
  * Initializes CUDA device. Allocates memory.
  * @param const Point* points
- * @param const int n
- * @param const int pointsCount
+ * @param int n
+ * @param int pointsCount
  * @returns int Cuda status code
  */
-int cudaInit(const Point points[], const int n, const int pointsCount) {
+int cudaInit(const Point points[], int n, int pointsCount) {
 
 	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
@@ -71,15 +71,15 @@ int cudaInit(const Point points[], const int n, const int pointsCount) {
 /**
  * Starts calculating distances for given number of points starting from statPoints on CUDA device.
  * @param double* distances
- * @param const int n
- * @param const int k
- * @param const int startPoint
- * @param const int pointsCount
+ * @param int n
+ * @param int k
+ * @param int startPoint
+ * @param int pointsCount
  * @returns int Cuda status code
  */
-int runOnCUDA(double* distances, const int n, const int k, const int startPoint, const int pointsCount) {
+int runOnCUDA(int n, int startPoint, int pointsCount) {
 	// Launch a kernel on the GPU with one thread for each element.
-	distanceKernel <<< dim3((int)ceil(n / CUDA_THREADS_PER_BLOCK), pointsCount), CUDA_THREADS_PER_BLOCK >>>(dev_points, dev_distances, n, startPoint);
+	distanceKernel << < dim3((unsigned)ceil(n / CUDA_THREADS_PER_BLOCK), (unsigned)pointsCount), (unsigned)CUDA_THREADS_PER_BLOCK >> >(dev_points, dev_distances, n, startPoint);
 
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();
@@ -94,11 +94,11 @@ int runOnCUDA(double* distances, const int n, const int k, const int startPoint,
 /**
  * Retrieves results of last distances calculation on cuda.
  * @param double* distances Results destination
- * @param const int n
- * @param const int pointsCount
+ * @param int n
+ * @param int pointsCount
  * @returns int Cuda status
  */
-int cudaResult(double* distances, const int n, const int pointsCount) {
+int cudaResult(double* distances, int n, int pointsCount) {
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.
 	cudaStatus = cudaDeviceSynchronize();

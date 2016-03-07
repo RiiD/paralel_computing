@@ -4,10 +4,10 @@
  * Calculates distances matrix. Very simple.
  *
  * @param const Point[] points
- * @param const int n
+ * @param int n
  * @param double[] distances
  */
-void linearDinstanceCalculate(const Point points[], const int n, double distances[]) {
+void linearDinstanceCalculate(const Point points[], int n, double distances[]) {
 	int i, j;
 	for (i = 0; i < n; i++) {
 		for (j = 0; j <= i; j++) {
