@@ -1,3 +1,3 @@
 #pragma once
 
-void linearDinstanceCalculate(Point points[], int n, double distances[]);
+void linearDinstanceCalculate(const Point points[], const int n, double distances[]);

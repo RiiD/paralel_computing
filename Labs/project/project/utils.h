@@ -12,7 +12,6 @@
 	#define NEWLINE "\n" // Mac OS X uses \n
 #endif
 
-void printDoubleArray(double* arr, int size, int itemsPerLine);
-void printArray(void** array, int arraySize, int typeSize, int itemsPerLine, void(*print)(void* item));
-void printIntArray(int arr[], int size, int itemsPerLine);
-void sortKElements(double arr[], int dest[], int n, int k);
+void printDoubleArray(const double* arr, const int size, const int itemsPerLine);
+void printIntArray(const int arr[], const int size, const int itemsPerLine);
+void sortKElements(double arr[], int dest[], const int n, const int k);

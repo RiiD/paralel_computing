@@ -2,7 +2,7 @@
 
 #include "points.h"
 
-int cudaInit(Point points[], int n, int pointsCount);
-int runOnCUDA(double* distances, int n, int k, int startPoint, int pointsCount);
-int cudaResult(double* distances, int n, int pointsCount);
+int cudaInit(const Point points[], const int n, const int pointsCount);
+int runOnCUDA(double* distances, const int n, const int k, const int startPoint, const int pointsCount);
+int cudaResult(double* distances, const int n, const int pointsCount);
 int cudaFinalize();

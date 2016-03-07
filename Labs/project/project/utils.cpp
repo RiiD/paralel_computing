@@ -5,19 +5,14 @@
 
 #include "utils.h"
 
-struct Entry {
-	int key;
-	double value;
-};
-
 /**
  * Generic array printer.
- * @param void** array
- * @param int arraySize
- * @param int typeSize
- * @param callable* print(void* item)
+ * @param const void** array
+ * @param const int arraySize
+ * @param const int typeSize
+ * @param callable* print(const void* item)
  */
-void printArray(void** array, int arraySize, int typeSize, int itemsPerLine, void (*print)(void* item)) {
+void printArray(const void** array, const int arraySize, const int typeSize, const int itemsPerLine, void (*print)(const void* item)) {
 	int i;
 	for (i = 0; i < arraySize; i++) {
 		
@@ -32,9 +27,9 @@ void printArray(void** array, int arraySize, int typeSize, int itemsPerLine, voi
 
 /**
  * Prints single double.
- * @param void** num
+ * @param const void** num
  */
-void doublePrinter(void* num) {
+void doublePrinter(const void* num) {
 	double* dNum = (double*)num;
 	printf("%.2f", *dNum);
 }
@@ -42,20 +37,20 @@ void doublePrinter(void* num) {
 /**
  * Prints array of doubles.
  * 
- * @param double* arr
- * @param int size
+ * @param const double* arr
+ * @param const int size
  */
-void printDoubleArray(double arr[], int size, int itemsPerLine) {
-	printArray((void**)arr, size, sizeof(double), itemsPerLine, doublePrinter);
+void printDoubleArray(const double arr[], const int size, const int itemsPerLine) {
+	printArray((const void**)arr, size, sizeof(double), itemsPerLine, doublePrinter);
 }
 
 /**
 * Prints array of ints.
 *
-* @param int* arr
-* @param int size
+* @param const int* arr
+* @param const int size
 */
-void printIntArray(int arr[], int size, int itemsPerLine) {
+void printIntArray(const int arr[], const int size, const int itemsPerLine) {
 	int i;
 	for (i = 0; i < size; i++) {
 		
@@ -67,20 +62,24 @@ void printIntArray(int arr[], int size, int itemsPerLine) {
 	}
 }
 
-void sortKElements(double arr[], int dest[], int n, int k)
+/**
+ * Generates array of indexes of smallest elemnts in array.
+ * @param double* arr
+ * @param int* dest
+ * @param const int n
+ * @param const int k
+ */
+void sortKElements(double arr[], int dest[], const int n, const int k)
 {
 	int i, j, min_idx;
 
-	// One by one move boundary of unsorted subarray
 	for (i = 0; i < k; i++)
 	{
-		// Find the minimum element in unsorted array
 		min_idx = i;
 		for (j = i + 1; j < n; j++)
 			if (arr[j] < arr[min_idx])
 				min_idx = j;
 
-		// Swap the found minimum element with the first element
 		arr[min_idx] = DBL_MAX;
 		dest[i] = min_idx;
 	}

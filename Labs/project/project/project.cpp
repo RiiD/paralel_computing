@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <omp.h>
 #include <time.h>
 #include <float.h>
@@ -12,19 +13,19 @@
 // Declarations
 void parseArgs(int argc, char *argv[]);
 void generatePointsFile();
-void findKNearest(void(*strategy)(Point *points, int *kNearest, void(*statusCallback)(const double percent)));
-void linearStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent));
-void cudaOmpStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent));
-void saveResults(int *kNearest);
+void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(const double percent)));
+void linearStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent));
+void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent));
+void saveResults(const int *kNearest);
 
 // Global parameters
 FUNC func = DEFAULT_FUNC;		// Function to run
 int n = DEFAULT_N;				// Number of points
 int k = DEFAULT_K;				// Number of nearest points
-double maxX = DEFAULT_MAX_X;	// Maximum x axis value
-double maxY = DEFAULT_MAX_Y;	// Maximum y axis value
-char* pointsFileName = DEFAULT_POINTS_FILE_NAME; // File to be readed
-char* resultFileName = DEFAULT_RESULTS_FILE_NAME;
+const double maxX = DEFAULT_MAX_X;	// Maximum x axis value
+const double maxY = DEFAULT_MAX_Y;	// Maximum y axis value
+const char* pointsFileName = DEFAULT_POINTS_FILE_NAME; // File to be readed
+const char* resultFileName = DEFAULT_RESULTS_FILE_NAME;
 
 /**
  * Bootstraps the application.
@@ -142,6 +143,9 @@ void printRunConfiguration() {
 		case CUDA_OMP_RUN:
 			printf("Parallel");
 			break;
+		case GENERATE_POINTS_FILE:
+			// Ignore.
+			break;
 	}
 	printf(NEWLINE);
 	printf("\tN: %d%s", n, NEWLINE);
@@ -159,10 +163,9 @@ void printStatus(const double percent) {
 
 /**
  * finds k nearest elemrnts.
- * @param char* fileName
  * @param void* strategy callback strategy to run.
  */
-void findKNearest(void(*strategy)(Point *points, int *kNearest, void(*statusCallback)(const double percent))) {
+void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(const double percent))) {
 	
 	int *kNearest, startTime, endTime;
 	Point* points;
@@ -204,11 +207,11 @@ void findKNearest(void(*strategy)(Point *points, int *kNearest, void(*statusCall
 
 /**
  * Calculates indexes of k nearest points for each point in points array in linear way.
- * @param Point* points
+ * @param const Point* points
  * @param int* kNearest points array. Must be initialized
  * @param void* statusCallback callable will be called when need to update status.
  */
-void linearStrategy(Point *points, int *kNearest, void (*statusCallback)(const double percent)) {
+void linearStrategy(const Point *points, int *kNearest, void (*statusCallback)(const double percent)) {
 	double *distances;
 
 	distances = (double*)calloc(n * n, sizeof(double));
@@ -232,11 +235,11 @@ void linearStrategy(Point *points, int *kNearest, void (*statusCallback)(const d
 
 /**
 * Calculates indexes of k nearest points for each point in points array using CUDA and omp.
-* @param Point* points
+* @param const Point* points
 * @param int* kNearest points array. Must be initialized
 * @param void* statusCallback callable will be called when need to update status.
 */
-void cudaOmpStrategy(Point *points, int *kNearest, void(*statusCallback)(const double percent)) {
+void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent)) {
 	double *distances;
 	distances = (double*)malloc(n * POINTS_PER_ITERATION * sizeof(double));
 
@@ -269,11 +272,11 @@ void cudaOmpStrategy(Point *points, int *kNearest, void(*statusCallback)(const d
 
 /**
  * Save results to results file.
- * @param int* kNearest
+ * @param const int* kNearest
  */
-void saveResults(int *kNearest) {
+void saveResults(const int *kNearest) {
 	FILE *fh;
-	fopen_s(&fh, resultFileName, "w");
+	fh = fopen(resultFileName, "w");
 
 	if (fh == NULL) {
 		printf("Failed to open file %s for writing!%s", resultFileName, NEWLINE);

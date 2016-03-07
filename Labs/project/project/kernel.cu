@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -31,12 +33,12 @@ __global__ void distanceKernel(const Point points[], double distances[], const i
 
 /**
  * Initializes CUDA device. Allocates memory.
- * @param Point* points
- * @param int n
- * @param int pointsCount
+ * @param const Point* points
+ * @param const int n
+ * @param const int pointsCount
  * @returns int Cuda status code
  */
-int cudaInit(Point points[], int n, int pointsCount) {
+int cudaInit(const Point points[], const int n, const int pointsCount) {
 
 	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
@@ -69,13 +71,13 @@ int cudaInit(Point points[], int n, int pointsCount) {
 /**
  * Starts calculating distances for given number of points starting from statPoints on CUDA device.
  * @param double* distances
- * @param int n
- * @param int k
- * @param int startPoint
- * @param int pointsCount
+ * @param const int n
+ * @param const int k
+ * @param const int startPoint
+ * @param const int pointsCount
  * @returns int Cuda status code
  */
-int runOnCUDA(double* distances, int n, int k, int startPoint, int pointsCount) {
+int runOnCUDA(double* distances, const int n, const int k, const int startPoint, const int pointsCount) {
 	// Launch a kernel on the GPU with one thread for each element.
 	distanceKernel <<< dim3((int)ceil(n / CUDA_THREADS_PER_BLOCK), pointsCount), CUDA_THREADS_PER_BLOCK >>>(dev_points, dev_distances, n, startPoint);
 
@@ -92,11 +94,11 @@ int runOnCUDA(double* distances, int n, int k, int startPoint, int pointsCount) 
 /**
  * Retrieves results of last distances calculation on cuda.
  * @param double* distances Results destination
- * @param int n
- * @param int pointsCount
+ * @param const int n
+ * @param const int pointsCount
  * @returns int Cuda status
  */
-int cudaResult(double* distances, int n, int pointsCount) {
+int cudaResult(double* distances, const int n, const int pointsCount) {
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.
 	cudaStatus = cudaDeviceSynchronize();
