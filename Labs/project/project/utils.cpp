@@ -8,11 +8,11 @@
 /**
  * Generic array printer.
  * @param const void** array
- * @param const int arraySize
- * @param const int typeSize
+ * @param int arraySize
+ * @param int typeSize
  * @param callable* print(const void* item)
  */
-void printArray(const void** array, const int arraySize, const int typeSize, const int itemsPerLine, void (*print)(const void* item)) {
+void printArray(const void** array, int arraySize, int typeSize, int itemsPerLine, void (*print)(const void* item)) {
 	int i;
 	for (i = 0; i < arraySize; i++) {
 		
@@ -38,9 +38,10 @@ void doublePrinter(const void* num) {
  * Prints array of doubles.
  * 
  * @param const double* arr
- * @param const int size
+ * @param int size
+ * @param int itemsPerLine
  */
-void printDoubleArray(const double arr[], const int size, const int itemsPerLine) {
+void printDoubleArray(const double arr[], int size, int itemsPerLine) {
 	printArray((const void**)arr, size, sizeof(double), itemsPerLine, doublePrinter);
 }
 
@@ -49,8 +50,9 @@ void printDoubleArray(const double arr[], const int size, const int itemsPerLine
 *
 * @param const int* arr
 * @param const int size
+* @param int itemsPerLine
 */
-void printIntArray(const int arr[], const int size, const int itemsPerLine) {
+void printIntArray(const int arr[], int size, int itemsPerLine) {
 	int i;
 	for (i = 0; i < size; i++) {
 		
@@ -66,10 +68,10 @@ void printIntArray(const int arr[], const int size, const int itemsPerLine) {
  * Generates array of indexes of smallest elemnts in array.
  * @param double* arr
  * @param int* dest
- * @param const int n
- * @param const int k
+ * @param int n
+ * @param int k
  */
-void sortKElements(double arr[], int dest[], const int n, const int k)
+void sortKElements(double arr[], int dest[], int n, int k)
 {
 	int i, j, min_idx;
 

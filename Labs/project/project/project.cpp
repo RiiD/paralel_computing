@@ -13,9 +13,9 @@
 // Declarations
 void parseArgs(int argc, char *argv[]);
 void generatePointsFile();
-void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(const double percent)));
-void linearStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent));
-void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent));
+void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(double percent)));
+void linearStrategy(const Point *points, int *kNearest, void(*statusCallback)(double percent));
+void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(double percent));
 void saveResults(const int *kNearest);
 
 // Global parameters
@@ -154,9 +154,9 @@ void printRunConfiguration() {
 
 /**
 * Prints given number as percent.
-* @param const double percent
+* @param double percent
 */
-void printStatus(const double percent) {
+void printStatus(double percent) {
 	printf("\r%5.2f%% completed", percent);
 	fflush(stdout);
 }
@@ -165,7 +165,7 @@ void printStatus(const double percent) {
  * finds k nearest elemrnts.
  * @param void* strategy callback strategy to run.
  */
-void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(const double percent))) {
+void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*statusCallback)(double percent))) {
 	
 	int *kNearest, startTime, endTime;
 	Point* points;
@@ -211,7 +211,7 @@ void findKNearest(void(*strategy)(const Point *points, int *kNearest, void(*stat
  * @param int* kNearest points array. Must be initialized
  * @param void* statusCallback callable will be called when need to update status.
  */
-void linearStrategy(const Point *points, int *kNearest, void (*statusCallback)(const double percent)) {
+void linearStrategy(const Point *points, int *kNearest, void (*statusCallback)(double percent)) {
 	double *distances;
 
 	distances = (double*)calloc(n * n, sizeof(double));
@@ -239,7 +239,7 @@ void linearStrategy(const Point *points, int *kNearest, void (*statusCallback)(c
 * @param int* kNearest points array. Must be initialized
 * @param void* statusCallback callable will be called when need to update status.
 */
-void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(const double percent)) {
+void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(double percent)) {
 	double *distances;
 	distances = (double*)malloc(n * POINTS_PER_ITERATION * sizeof(double));
 
@@ -253,7 +253,7 @@ void cudaOmpStrategy(const Point *points, int *kNearest, void(*statusCallback)(c
 	for (int i = 0; i <= n; i = i + POINTS_PER_ITERATION) {
 
 		if (i < n)
-			runOnCUDA(distances, n, k, i, POINTS_PER_ITERATION);
+			runOnCUDA(n, i, POINTS_PER_ITERATION);
 
 		if (i > 0) {
 		#pragma omp parallel for
