@@ -79,7 +79,15 @@ int cudaInit(const Point points[], int n, int pointsCount) {
  */
 int runOnCUDA(int n, int startPoint, int pointsCount) {
 	// Launch a kernel on the GPU with one thread for each element.
-	distanceKernel << < dim3((unsigned)ceil(n / CUDA_THREADS_PER_BLOCK), (unsigned)pointsCount), (unsigned)CUDA_THREADS_PER_BLOCK >> >(dev_points, dev_distances, n, startPoint);
+	unsigned int threads;
+	dim3 blockDim;
+
+	threads = (unsigned int)fmin((double)CUDA_THREADS_PER_BLOCK, n);
+
+	blockDim.x = (unsigned int)ceil((double)n / CUDA_THREADS_PER_BLOCK);
+	blockDim.y = (unsigned int)pointsCount;
+
+	distanceKernel <<< blockDim, threads >>>(dev_points, dev_distances, n, startPoint);
 
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();

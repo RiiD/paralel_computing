@@ -5,7 +5,7 @@
 #include <float.h>
 #include <mpi.h>
 #include <string.h>
-
+#include <math.h>
 #include "points.h"
 #include "utils.h"
 #include "linear.h"
@@ -50,16 +50,24 @@ int main(int argc, char *argv[]) {
 
 	switch (func) {
 		case GENERATE_POINTS_FILE:
-			generatePointsFile();
+			if (rank == MASTER_RANK)
+				generatePointsFile();	
 			break;
 		case LINEAR_RUN:
-			findKNearest(linearStrategy);
+			if (rank == MASTER_RANK)
+				findKNearest(linearStrategy);
 			break;
 		case CUDA_OMP_RUN:
-			findKNearest(cudaOmpStrategy);
+			if (rank == MASTER_RANK)
+				findKNearest(cudaOmpStrategy);
 			break;
 		case MPI_CUDA_OMP_RUN:
-			findKNearest(mpiCudaOmpStrategy);
+			if (commSize > 1) {
+				findKNearest(mpiCudaOmpStrategy);
+			} else {
+				func = CUDA_OMP_RUN;
+				findKNearest(cudaOmpStrategy);
+			}
 			break;
 	}
 
@@ -108,12 +116,10 @@ void parseArgs(int argc, char *argv[]) {
 						func = LINEAR_RUN;
 						break;
 					case 'p':
-						func = MPI_CUDA_OMP_RUN;
+						func = CUDA_OMP_RUN;
 				}
 				break;
 			}
-
-
 		}
 	}
 }
@@ -123,9 +129,6 @@ void parseArgs(int argc, char *argv[]) {
  */
 void generatePointsFile() {
 	Point* points;
-
-	if (rank != MASTER_RANK)
-		return;
 
 	printf("Creating points file:%s", NEWLINE);
 	printf("\tFile name:\t%s%s", pointsFileName, NEWLINE);
@@ -201,7 +204,7 @@ void silentStatus(double percent) {
 }
 
 /**
- * finds k nearest elemrnts.
+ * finds k nearest elements.
  * @param void* strategy callback strategy to run.
  */
 void findKNearest(
@@ -292,7 +295,14 @@ void linearStrategy(const Point *points, int *kNearest, int startPoint, int numb
 * @param int* kNearest points array. Must be initialized
 * @param void* statusCallback callable will be called when need to update status.
 */
-void cudaOmpStrategy(const Point *points, int *kNearest, int startPoint, int numberOfPoints, void(*statusCallback)(double percent)) {
+void cudaOmpStrategy(
+	const Point *points, 
+	int *kNearest, 
+	int startPoint, 
+	int numberOfPoints, 
+	void(*statusCallback)(double percent)
+) {
+	int chunks, i;
 	double *distances;
 	distances = (double*)malloc(n * POINTS_PER_ITERATION * sizeof(double));
 
@@ -303,28 +313,39 @@ void cudaOmpStrategy(const Point *points, int *kNearest, int startPoint, int num
 
 	cudaInit(points, n, POINTS_PER_ITERATION);
 
-	for (int i = 0; i <= numberOfPoints; i += POINTS_PER_ITERATION) {
+	chunks = (int)ceil((double)n / POINTS_PER_ITERATION);
 
-		if (i < n)
-			runOnCUDA(n, i + startPoint, POINTS_PER_ITERATION);
+	for (i = 0; i <= chunks; i++) {
+		int currChunkSize = (int)fmin((double)POINTS_PER_ITERATION, n - i * POINTS_PER_ITERATION);
+		int lastChunkSize = (int)fmin((double)POINTS_PER_ITERATION, n - (i - 1) * POINTS_PER_ITERATION);
 
+
+		if (i < chunks) {
+			runOnCUDA(n, i * POINTS_PER_ITERATION + startPoint, currChunkSize);
+		}
+		
 		if (i > 0) {
-		#pragma omp parallel for
-			for (int j = 0; j < POINTS_PER_ITERATION; j++) {
-				distances[n * j + (i + startPoint - POINTS_PER_ITERATION) + j] = DBL_MAX; // Max out distance from point itself so sort algorithm will ignore it
-				sortKElements(distances + j * n, kNearest + k * (i - POINTS_PER_ITERATION + j), n, k);
+			#pragma omp parallel for
+			for (int j = 0; j < lastChunkSize; j++) {
+				// Max out distance from point itself so sort algorithm will ignore it
+				distances[n * j + ((i - 1) * POINTS_PER_ITERATION + startPoint) + j] = DBL_MAX; 
+				sortKElements(distances + j * n, kNearest + k * ((i - 1) * POINTS_PER_ITERATION + j), n, k);
 			}
 		}
-		if (i < n)
-			cudaResult(distances, n, POINTS_PER_ITERATION);
-		statusCallback(100.0 * i / numberOfPoints);
+
+		if (i < chunks) {
+			cudaResult(distances, n, currChunkSize);
+		}
+
+		statusCallback(100.0 * i / chunks);
 	}
+
 	cudaFinalize();
 	free(distances);
 }
 
 void mpiMasterJob(const Point* points, int* result, void(*statusCallback)(double percent)) {
-	int done = 0, sent = 0, packPos = 0, params[] = {n, k, 0};
+	int done = 0, sent = 0, params[] = {n, k, 0};
 	MPI_Status status;
 	int *buf = (int*)malloc((MPI_JOBS_PER_ITERATION * k + 1) * sizeof(int));
 
@@ -369,17 +390,16 @@ void mpiSlaveJob() {
 	t = buf[2];
 
 	buf = (int*)realloc(buf, (MPI_JOBS_PER_ITERATION * k + 1) * sizeof(int));
+	points = (Point*)malloc(sizeof(Point) * n);
 
 	buf[0] = t;
 
-	points = (Point*)malloc(sizeof(Point) * n);
-
 	MPI_Recv(points, n * 2, MPI_DOUBLE, MASTER_RANK, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	do {
+	while (buf[0] < n) {
 		cudaOmpStrategy(points, buf + 1, buf[0], MPI_JOBS_PER_ITERATION, silentStatus);
 		MPI_Send(buf, MPI_JOBS_PER_ITERATION  * k + 1, MPI_INT, MASTER_RANK, 0, MPI_COMM_WORLD);
 		MPI_Recv(buf, 1, MPI_INT, MASTER_RANK, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	} while (buf[0] < n);
+	}
 
 	free(points);
 	free(buf);
