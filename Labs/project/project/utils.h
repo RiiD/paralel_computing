@@ -12,6 +12,8 @@
 	#define NEWLINE "\n" // Mac OS X uses \n
 #endif
 
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 void printDoubleArray(const double* arr, int size, int itemsPerLine);
 void printIntArray(const int arr[], int size, int itemsPerLine);
 void sortKElements(double arr[], int dest[], int n, int k);
