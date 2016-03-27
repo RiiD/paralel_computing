@@ -284,7 +284,7 @@ void linearStrategy(const Point *points, int *kNearest, int startPoint, int numb
 	statusCallback(0);
 	linearDinstanceCalculate(points, n, distances);
 	statusCallback(50);
-	for (int i = n; i < n; i++) {
+	for (int i = 0; i < n; i++) {
 		distances[i * n + i] = DBL_MAX; // Set (x, x) elemnt to max double so it will not be considered as nearest point to itself.
 		sortKElements(distances + i * n, kNearest + i * k, n, k);
 		statusCallback( 50 + 50.0 * (i + 1) / n);
@@ -322,8 +322,8 @@ void cudaOmpStrategy(
 	chunks = (int)ceil((double)numberOfPoints / POINTS_PER_ITERATION);
 
 	for (i = 0; i <= chunks; i++) {
-		int currChunkSize = (int)fmin((double)POINTS_PER_ITERATION, numberOfPoints - i * POINTS_PER_ITERATION);
-		int lastChunkSize = (int)fmin((double)POINTS_PER_ITERATION, numberOfPoints - (i - 1) * POINTS_PER_ITERATION);
+		int currChunkSize = MIN(POINTS_PER_ITERATION, numberOfPoints - i * POINTS_PER_ITERATION);
+		int lastChunkSize = MIN(POINTS_PER_ITERATION, numberOfPoints - (i - 1) * POINTS_PER_ITERATION);
 
 		if (i < chunks) {
 			runOnCUDA(n, i * POINTS_PER_ITERATION + startPoint, currChunkSize);
