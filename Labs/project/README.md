@@ -3,7 +3,8 @@
 ## Usage
 
 ``` 
-project.exe -l [-fp filePath] [-fr filePath]                    Linear run
+project.exe -ll [-fp pointsFilePath] [-fr resultsFilePath]      Linear run
+project.exe -lp [-fp pointsFilePath] [-fr resultsFilePath]      CUDA + OMP
 project.exe [-fp filePath] [-fr filePath]                       Defalt run(All options)
 project.exe -g [-fp filePath] [-fr filePath] [-n NUM] [-k NUM]  Generate points
 
