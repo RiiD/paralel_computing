@@ -39,21 +39,21 @@ Master routine:
 - Save results into file
 
 Slave routine:
-	- Receive points and configuration from master
-	- While master does't sends terminate message 
-		- Receive job from master
-		- Run using CUDA + OMP
-		- Send results to master
+- Receive points and configuration from master
+- While master does't sends terminate message 
+ - Receive job from master
+ - Run using CUDA + OMP
+ - Send results to master
 
 
 ## CUDA + OMP
 This strategy is used by slaves and when running on single proccess. It can calculate all points or group of points. It will divide the group into snmaller groups to fit in graphic card memory and calculate them. Cuda device calculates distances and proccessor calculates k nearest points. K nearest points will be calculated in same time when next group of distances are being calculated.
 
 Routine:
-	- Divide given points into smaller groups and foreach do:
-		- Calculate mini distance matrix
-		- Calculate k nearest points for points in previous group
-		- (These 2 steps are performed in same time)
+- Divide given points into smaller groups and foreach do:
+ - Calculate mini distance matrix
+ - Calculate k nearest points for points in previous group
+ - (These 2 steps are performed in same time)
 
 
 # Running
