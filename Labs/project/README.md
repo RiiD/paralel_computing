@@ -19,21 +19,14 @@ project.exe -g [-fp filePath] [-fr filePath] [-n NUM] [-k NUM]  Generate points
 Given n points, we need to find k nearest neighbors for each point. 1000 <= n <= 300000, 1 <= k <= 6.
 
 ## Naive approach
-The simple way is to create distances matrix. 
-On position (i, j) will be the distance from point i to point j.
-And then just search for indices of k smallest elements on each row.
-But, on large datasets space needed for this matrix will be enormous.
-This approach is very simple and the code will be bug free so I used it for testing results from more comlex aproaches.
+The simple way is to create distances matrix. On position (i, j) will be the distance from point i to point j. And then just search for indices of k smallest elements on each row. But, on large datasets space needed for this matrix will be enormous. This approach is very simple and the code will be bug free so I used it for testing results from more comlex aproaches.
 
 ## Bulk aproach
-Another approach is to calculate distances in parts. Each time we calculate distances only for s points, s << n, make little distances matrix, find nearest points and save the into results matrix.
-This aproach doesn't need much space. We reuse same space for many iterations. Another benefit of this approach is that we can paralelize the calculations for different groups of points.
+Another approach is to calculate distances in parts. Each time we calculate distances only for s points, s << n, make little distances matrix, find nearest points and save the into results matrix. This aproach doesn't need much space. We reuse same space for many iterations. Another benefit of this approach is that we can paralelize the calculations for different groups of points.
 In my main implementaion I used this approach.
 
 ## CUDA + OMP + MPI
-This is my main implementation. This implementation should be used on 2 or more computers.
-Master process will not utilize all resources of the computer so consider running 2 proccesses on main computer.
-Slaves utilize CUDA and all available cores.
+This is my main implementation. This implementation should be used on 2 or more computers. Master process will not utilize all resources of the computer so consider running 2 proccesses on main computer. Slaves utilize CUDA and all available cores.
 
 Master routine:
 	Load data from input file
@@ -53,11 +46,7 @@ Slave routine:
 
 
 ## CUDA + OMP
-This strategy is used by slaves and when running on single proccess.
-It can calculate all points or group of points.
-It will divide the group into snmaller groups to fit in graphic card memory and calculate them.
-Cuda device calculates distances and proccessor calculates k nearest points.
-K nearest points will be calculated in same time when next group of distances are being calculated.
+This strategy is used by slaves and when running on single proccess. It can calculate all points or group of points. It will divide the group into snmaller groups to fit in graphic card memory and calculate them. Cuda device calculates distances and proccessor calculates k nearest points. K nearest points will be calculated in same time when next group of distances are being calculated.
 
 Routine:
 	Divide given points into smaller groups and foreach do:
@@ -89,16 +78,15 @@ knn -ll
 ## Overview
 To run this application on linux machine, I installed on it nvidia drivers, mpi and cuda.
 My computer specs:
-Fujitsu Lifebook A series
-Inter i7 proccessor with integrated graphics
-Nvidia GeForce GT 620M (Ivy bridge)
-Ubuntu 14.04
+ - Fujitsu Lifebook A series
+ - Inter i7 proccessor with integrated graphics
+ - Nvidia GeForce GT 620M (Ivy bridge)
+ - Ubuntu 14.04
 
 To compile my work on linux just got tou sorces folder and run make.
 
 ## Driver
-Main problem in my case was to install nvidia drivers that support CUDA 7 and make the computer to use it instead of integrated graphics. 
-If your machine have one graphic drive and latest drivers are installed you can skip this step.
+Main problem in my case was to install nvidia drivers that support CUDA 7 and make the computer to use it instead of integrated graphics. If your machine have one graphic drive and latest drivers are installed you can skip this step.
 
 Here is how I managed to install and use nvidia device:
 1. Install bumblebee - https://wiki.ubuntu.com/Bumblebee
