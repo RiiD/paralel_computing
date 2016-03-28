@@ -79,8 +79,8 @@ Main problem in my case was to install nvidia drivers that support CUDA 7 and ma
 
 Here is how I managed to install and use nvidia device:
 1. Install bumblebee - https://wiki.ubuntu.com/Bumblebee
-2. Install newest nvidia drivers. For me it worked with 355 version.
-3. Try running 	
+2. 2. Install newest nvidia drivers. For me it worked with 355 version.
+3. 3. Try running 
 	```
 	optirun knn
 	```
