@@ -33,8 +33,8 @@ Master routine:
 - Load data from input file
 - Initialize slaves and send them points and configurations
 - While not calculated points left
--- Send command to slave to calculate next group of numvbers
--- Receive results from slave and save it
+ - Send command to slave to calculate next group of numvbers
+ - Receive results from slave and save it
 - Send each slave terminate message
 - Save results into file
 
