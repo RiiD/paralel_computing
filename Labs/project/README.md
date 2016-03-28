@@ -30,30 +30,30 @@ In my main implementaion I used this approach.
 This is my main implementation. This implementation should be used on 2 or more computers. Master process will not utilize all resources of the computer so consider running 2 proccesses on main computer. Slaves utilize CUDA and all available cores.
 
 Master routine:
-	Load data from input file
-	Initialize slaves and send them points and configurations
-	While not calculated points left
-		Send command to slave to calculate next group of numvbers
-		Receive results from slave and save it
-	Send each slave terminate message
-	Save results into file
+	- Load data from input file
+	- Initialize slaves and send them points and configurations
+	- While not calculated points left
+		- Send command to slave to calculate next group of numvbers
+		- Receive results from slave and save it
+	- Send each slave terminate message
+	- Save results into file
 
 Slave routine:
-	Receive points and configuration from master
-	While master does't sends terminate message 
-		Receive job from master
-		Run using CUDA + OMP
-		Send results to master
+	- Receive points and configuration from master
+	- While master does't sends terminate message 
+		- Receive job from master
+		- Run using CUDA + OMP
+		- Send results to master
 
 
 ## CUDA + OMP
 This strategy is used by slaves and when running on single proccess. It can calculate all points or group of points. It will divide the group into snmaller groups to fit in graphic card memory and calculate them. Cuda device calculates distances and proccessor calculates k nearest points. K nearest points will be calculated in same time when next group of distances are being calculated.
 
 Routine:
-	Divide given points into smaller groups and foreach do:
-		Calculate mini distance matrix
-		Calculate k nearest points for points in previous group
-		(These 2 steps are performed in same time)
+	- Divide given points into smaller groups and foreach do:
+		- Calculate mini distance matrix
+		- Calculate k nearest points for points in previous group
+		- (These 2 steps are performed in same time)
 
 
 # Running
@@ -78,9 +78,10 @@ To compile my work on linux just got tou sorces folder and run make.
 Main problem in my case was to install nvidia drivers that support CUDA 7 and make the computer to use it instead of integrated graphics. If your machine have one graphic drive and latest drivers are installed you can skip this step.
 
 Here is how I managed to install and use nvidia device:
+
 1. Install bumblebee - https://wiki.ubuntu.com/Bumblebee
-2. 2. Install newest nvidia drivers. For me it worked with 355 version.
-3. 3. Try running 
+2. Install newest nvidia drivers. For me it worked with 355 version.
+3. Try running 
 	```
 	optirun knn
 	```
