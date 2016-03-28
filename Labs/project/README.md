@@ -14,6 +14,7 @@ project.exe -g [-fp filePath] [-fr filePath] [-n NUM] [-k NUM]  Generate points
         -n NUM          Set number of points to NUM.
         -k NUM          Set number of nearest points to NUM.
 ```
+To run with MPI use mpiexec. When runnning on one proccess, using MPI + CUDA + OMP it will automatically switch to CUDA + OMP.
 
 ##  The problem
 Given n points, we need to find k nearest neighbors for each point. 1000 <= n <= 300000, 1 <= k <= 6.
@@ -58,21 +59,9 @@ Routine:
 # Running
 ## MPI + OMP + CUDA
 (When running on one proccess will be runned OMP + CUDA strategy)
+```
 mpiexec -n [num of procs] knn
-
-## OMP + CUDA
-knn
-knn -lp
-
-## OMP + CUDA
-knn -ll
-
-## Params
--fp	Points file
--pr	Results file
--g	Generate points file
--n	Set n. Only for generating.
--k	Set k. Only for generating.
+```
 
 # Linux
 ## Overview
@@ -91,12 +80,16 @@ Main problem in my case was to install nvidia drivers that support CUDA 7 and ma
 Here is how I managed to install and use nvidia device:
 1. Install bumblebee - https://wiki.ubuntu.com/Bumblebee
 2. Install newest nvidia drivers. For me it worked with 355 version.
-3. Try running 
+3. Try running 	
+	```
 	optirun knn
+	```
 4. If it works good!
 5. If not try this:
+	```
 	sudo su
 	update-alternative --config x86_64-linux-gnu_gl_conf
+	```
 	Try step 3 on every option.
 6. If still not works.... Google.
 
@@ -110,19 +103,27 @@ Install MPI - https://jetcracker.wordpress.com/2012/03/01/how-to-install-mpi-in-
 
 When writing the code, separate cuda code and mpi code into separate files. This will help you when you will compile them.
 To compile cuda sorce code:
+```
 nvcc -c kernel.cu
+```
 
 To compile MPI code:
+```
 mpic++ -c mpi.cpp
+```
 
 You can use mpi compiler to compile other files except cuda sources.
 These commands will create *.o files. To link them and create executable use mpi linker:
+```
 mpic++ *.o -L <PATH_TO_CUDA_LIB_FOLDER> -lcuda -lcudart -o <EXECUTABLE_NAME>
+```
 
 Cuda lib folder in my case: /usr/local/cuda-7.5/lib64
 
 If you want to enable OMP add -fopenmp flag:
+```
 mpic++ -fopenmp *.o -L <PATH_TO_CUDA_LIB_FOLDER> -lcuda -lcudart -o <EXECUTABLE_NAME>
+```
 
 You don't have to install OMP. It is part of compiler.
 See my Makefile for example.
