@@ -30,13 +30,13 @@ In my main implementaion I used this approach.
 This is my main implementation. This implementation should be used on 2 or more computers. Master process will not utilize all resources of the computer so consider running 2 proccesses on main computer. Slaves utilize CUDA and all available cores.
 
 Master routine:
-	- Load data from input file
-	- Initialize slaves and send them points and configurations
-	- While not calculated points left
-		- Send command to slave to calculate next group of numvbers
-		- Receive results from slave and save it
-	- Send each slave terminate message
-	- Save results into file
+- Load data from input file
+- Initialize slaves and send them points and configurations
+- While not calculated points left
+-- Send command to slave to calculate next group of numvbers
+-- Receive results from slave and save it
+- Send each slave terminate message
+- Save results into file
 
 Slave routine:
 	- Receive points and configuration from master
